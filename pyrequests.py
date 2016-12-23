@@ -1,4 +1,4 @@
-import json, os, pprint, random, requests, uuid
+import json, os, pprint, random, re, requests, uuid
 from datetime import datetime, timedelta
 from lxml import etree
 from signal import *
@@ -6,33 +6,75 @@ from time import time
 
 
 def scrape_proxy():
-	# url = "http://www.gatherproxy.com/proxylist/country/?c=Philippines"
-	url = "https://www.proxynova.com/proxy-server-list/country-ph/"
+	# url = "https://www.sslproxies.org/"
+	# url = "http://www.xicidaili.com/nn/"
+	url = "http://haoip.cc/tiqu.htm"
 	headers = {
 		'User-agent': 'Mozilla/5.0'
 	}
 	response = requests.get(url, headers=headers)
-	print(response)
 	html_tree = etree.HTML(response.content)
-	print(html_tree.xpath("//table[@id='tbl_proxy_list']/tbody/tr"))
-	proxys = []
-	for tr in html_tree.xpath("//table[@id='tbl_proxy_list']/tbody/tr"):
-		ip = ""
-		port = ""
-		for index, td in enumerate(tr):
-			print(index, td)	
-			for x in td[:2]:
-				print(x.text)
-				if index == 0:
-					ip += x.text.strip()
+	# proxys = ["{}:{}".format(tr[0].text, tr[1].text) for tr in html_tree.xpath("//table[@id='proxylisttable']/tbody/tr")]
+	# proxys = ["{}:{}".format(tr[1].text, tr[2].text) for index, tr in enumerate(html_tree.xpath("//table[@id='ip_list']/tr"))][1:]
+	proxys = [ip.strip() for ip in re.findall(r'r/>(.*?)<b', response.text, re.S)]
+	with open("proxies.txt", "w", encoding="utf-8") as f:
+		f.write("\n".join(proxys))
 
-				if index == 1:
-					port = x.text.strip()
-					print(x)
-		proxys.append('{}:{}'.format(ip, port))
-	print(proxys)
-				
-	# pprint.pprint(etree.tostring(html_tree.xpath("//table[@id='tblproxy']")[0]))
+def get_proxies():
+	with open("proxies.txt", "r", encoding="utf-8") as f:
+		proxys = [proxy.rstrip() for proxy in f]
+
+	user_agents = [
+		"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Safari/537.1",
+		"Mozilla/5.0 (X11; CrOS i686 2268.111.0) AppleWebKit/536.11 (KHTML, like Gecko) Chrome/20.0.1132.57 Safari/536.11",
+		"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6",
+		"Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1090.0 Safari/536.6",
+		"Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/19.77.34.5 Safari/537.1",
+		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.9 Safari/536.5",
+		"Mozilla/5.0 (Windows NT 6.0) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.36 Safari/536.5",
+		"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1063.0 Safari/536.3",
+		"Mozilla/5.0 (Windows NT 5.1) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1063.0 Safari/536.3",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_0) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1063.0 Safari/536.3",
+		"Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1062.0 Safari/536.3",
+		"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1062.0 Safari/536.3",
+		"Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.1 Safari/536.3",
+		"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.1 Safari/536.3",
+		"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.1 Safari/536.3",
+		"Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.0 Safari/536.3",
+		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.24 (KHTML, like Gecko) Chrome/19.0.1055.1 Safari/535.24",
+		"Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/535.24 (KHTML, like Gecko) Chrome/19.0.1055.1 Safari/535.24"
+	]
+
+	while proxys:
+		proxy = proxys.pop()
+		print("CHECKING {}".format(proxy))
+
+		try:
+			url = 'http://httpbin.org/ip'
+			s = requests.session()
+			headers = {
+				'User-agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Safari/537.1"
+			}
+			proxies = {
+				'http': 'http://{}'.format(proxy),
+				'https': 'https://{}'.format(proxy),
+				'ftp': '{}'.format(proxy),
+			}
+			response = s.get(url, headers=headers, proxies=proxies, timeout=180)
+			print(response.status_code)
+			if response.status_code == 200:
+				with open("proxies.txt", "w", encoding="utf-8") as f:
+					f.write("\n".join(proxys))
+
+				with open("active_proxy.txt", "w", encoding="utf-8") as f:
+					f.write(proxy)
+
+				return proxy
+			print("WORKING", response, response.content if response.status_code == 200 else '')
+		except Exception as e:
+			print("ERROR: {}".format(e))
+			# create function to log errors
+			pass
 
 def savecontent(links):
 	with open("saveContent.txt", "w", encoding="utf-8") as f:
@@ -41,29 +83,62 @@ def savecontent(links):
 		f.close()
 
 def validate():
+	print("VALIDATIG ACCOUNTS.")
 	accounts = []
 	with open("账号.txt", "r", encoding='utf-8') as f:
 		accounts = [tuple(account.rstrip().split("----")) for account in f]
 
-	for account in accounts:
-		s = requests.session()
+	proxy = ""
+	with open("active_proxy.txt", "r", encoding="utf-8") as f:
+		for ip in f:
+			proxy = ip.rstrip() 
+	print("PROXY: {}".format(proxy))
 
-		# login
-		url = "https://imgur.com/signin?redirect=http%3A%2F%2Fimgur.com%2F"
-		data = {
-			'username': account[0], 
-			'password': account[1]
-		}
-		headers = {
-			'User-agent': 'Mozilla/5.0', 
-			'referer': ''
-		}
-		html = s.post(url, data, headers = headers)
-		html_tree = etree.HTML(html.content)
-		print(html, html.status_code, data, html_tree.xpath("//div[@class='dropdown-footer']"), html_tree.xpath("//div[@class='captcha']"))
+	accounts_active = []
+	accounts_inactive = []
+
+	for account in accounts:
+		try:
+			s = requests.session()
+
+			# login
+			url = "https://imgur.com/signin?redirect=http%3A%2F%2Fimgur.com%2F"
+			data = {
+				'username': account[0], 
+				'password': account[1]
+			}
+			headers = {
+				# 'User-agent': 'Mozilla/5.0', 
+				'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36',
+				'referer': ''
+			}
+			proxies = {
+				'http': 'http://{}'.format(proxy),
+				'https': 'https://{}'.format(proxy),
+				'ftp': '{}'.format(proxy)
+			}
+			print("SENDING REQUEST: {} {}  {}".format(proxies, data, headers))
+			html = s.post(url, data, headers=headers, proxies=proxies, timeout=180)
+			html_tree = etree.HTML(html.content)
+			print(html, html.status_code, data, html_tree.xpath("//div[@class='dropdown-footer']"), html_tree.xpath("//div[@class='captcha']"))
+			if html_tree.xpath("//div[@class='dropdown-footer']"):
+				accounts_active.append("{}----{}".format(account[0], account[1]))
+			else:
+				accounts_inactive.append("{}----{}".format(account[0], account[1]))
+		except Exception as e:
+			print("ERROR: {}".format(e))
 
 		s.cookies.clear()
 		s.close()
+
+	print("ACTIVE: {}".format(accounts_active))
+	print("INACTIVE: {}".format(accounts_inactive))
+
+	with open("账号active.txt", "w", encoding="utf-8") as f:
+		f.write("\n".join(accounts_active))
+
+	with open("账号inactive.txt", "w", encoding="utf-8") as f:
+		f.write("\n".join(accounts_inactive))
 
 def main():
 	keywords = []
@@ -163,6 +238,8 @@ def main():
 			break
 
 if __name__ == "__main__":
-	# validate() # Validate accounts
-	# main()
 	scrape_proxy()
+	get_proxies()
+	validate() # Validate accounts
+	# main()
+	# scrape_proxy()
