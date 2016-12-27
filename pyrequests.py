@@ -7,167 +7,13 @@ from time import time
 
 lock = threading.Lock()
 
-def check_proxy(name, p):
-	url = 'http://httpbin.org/ip'
-	s = requests.session()
-	headers = {
-		# 'User-agent': random.choice(user_agents)
-		'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'
-	}
-	proxies = {
-		'http': 'http://{}'.format(p),
-		'https': 'https://{}'.format(p),
-		'ftp': '{}'.format(p),
-	}
-	try:
-		response = s.get(url, headers=headers, proxies=proxies, timeout=3)
-		print("{} WORKING".format(p), response, json.loads(response.text)['origin'] if response.status_code == 200 else '')
-		if response.status_code == 200 and 'origin' in json.loads(response.text):
-			checked_proxies.append(p)
-	except Exception as ex:
-		print("{0} An exception of type {1} occured. Arguments:\n{2!r}".format(p, type(ex).__name__, ex.args))
-		# create function to log errors
-		pass
-	s.cookies.clear()
-	s.close()
-
-	lock.acquire()
-	lock.release()
-
-def get_proxies():
-	global checked_proxies, user_agents
-	# url = "https://www.sslproxies.org/"
-	# url = "http://www.xicidaili.com/nn/"
-	url = "https://www.sslproxies.org/"
-	response = requests.get(url)
-	html_tree = etree.HTML(response.content)
-	# proxys = ["{}:{}".format(tr[0].text, tr[1].text) for tr in html_tree.xpath("//table[@id='proxylisttable']/tbody/tr")]
-	# proxys = ["{}:{}".format(tr[1].text, tr[2].text) for index, tr in enumerate(html_tree.xpath("//table[@id='ip_list']/tr"))][1:]
-	# proxys = [ip.strip() for ip in re.findall(r'r/>(.*?)<b', response.text, re.S)]
-
-	proxys = []
-	user_agents = get_user_agents()
-
-	for tr in html_tree.xpath("//table[@id='proxylisttable']/tbody/tr"):
-		if tr[4].text == "elite proxy" and tr[6].text == "yes":
-			proxys.append("{}:{}".format(tr[0].text, tr[1].text))
-
-	print(proxys, len(proxys))
-
-	threads_num = 2
-	checked_proxies = []
-	while proxys:
-		threads = []
-		for i in range(threads_num):
-			p = proxys.pop()
-			
-			t = threading.Thread(target = check_proxy, args = ("Thread-{}".format(i), p))
-			threads.append(t)
-			t.start()
-
-		for t in threads:
-			t.join()
-			# proxy = "{}:{}".format(tr[0].text, tr[1].text)
-	# with open("proxies.txt", "w", encoding="utf-8") as f:
-	# 	f.write("\n".join(proxys))
-
-	# with open("proxies.txt", "r", encoding="utf-8") as f:
-	# 	proxys = [proxy.rstrip() for proxy in f]
-			# print("CHECKING {}".format(proxy))
-			# try:
-			# 	url = 'http://httpbin.org/ip'
-			# 	s = requests.session()
-			# 	headers = {
-			# 		'User-agent': random.choice(user_agents)
-			# 	}
-			# 	proxies = {
-			# 		'http': 'http://{}'.format(proxy),
-			# 		'https': 'https://{}'.format(proxy),
-			# 		'ftp': '{}'.format(proxy),
-			# 	}
-			# 	response = s.get(url, headers=headers, proxies=proxies, timeout=15)
-			# 	print("WORKING", response, json.loads(response.text)['origin'] if response.status_code == 200 else '')
-			# 	if response.status_code == 200 and 'origin' in json.loads(response.text):
-			# 		# with open("proxies.txt", "w", encoding="utf-8") as f:
-			# 		# 	f.write("\n".join(proxys))
-
-			# 		# with open("active_proxy.txt", "w", encoding="utf-8") as f:
-			# 		# 	f.write(proxy)
-
-			# 		# return proxy
-			# 		proxys.append(proxy)
-			# except Exception as e:
-			# 	print("ERROR: {}".format(e))
-			# 	# create function to log errors
-			# 	pass
-	print(checked_proxies)
-
-def savecontent(links):
-	with open("saveContent.txt", "w", encoding="utf-8") as f:
-		for link in links:
-			f.write("{}\n".format(link))
-		f.close()
-
-def validate():
-	print("VALIDATING ACCOUNTS.")
-	accounts = []
-	with open("账号.txt", "r", encoding='utf-8') as f:
-		accounts = [tuple(account.rstrip().split("----")) for account in f]
-
-	proxy = ""
-	with open("active_proxy.txt", "r", encoding="utf-8") as f:
-		for ip in f:
-			proxy = ip.rstrip() 
-	print("PROXY: {}".format(proxy))
-
-	accounts_active = []
-	accounts_inactive = []
-
-	for account in accounts:
-		try:
-			s = requests.session()
-
-			# login
-			url = "https://imgur.com/signin?redirect=http%3A%2F%2Fimgur.com%2F"
-			data = {
-				'username': account[0], 
-				'password': account[1]
-			}
-			headers = {
-				# 'User-agent': 'Mozilla/5.0', 
-				'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36',
-				'referer': ''
-			}
-			proxies = {
-				'http': 'http://{}'.format(proxy),
-				'https': 'https://{}'.format(proxy),
-				'ftp': '{}'.format(proxy)
-			}
-			print("SENDING REQUEST: {} {}  {}".format(proxies, data, headers))
-			html = s.post(url, data, headers=headers, proxies=proxies, timeout=15)
-			html_tree = etree.HTML(html.content)
-			print(html, html.status_code, data, html_tree.xpath("//div[@class='dropdown-footer']"), html_tree.xpath("//div[@class='captcha']"))
-			if html_tree.xpath("//div[@class='dropdown-footer']"):
-				accounts_active.append("{}----{}".format(account[0], account[1]))
-			else:
-				accounts_inactive.append("{}----{}".format(account[0], account[1]))
-		except Exception as e:
-			print("ERROR: {}".format(e))
-		except HTTPSConnectionPool as e:
-			print("Proxy error.")
-		s.cookies.clear()
-		s.close()
-
-	print("ACTIVE: {}".format(accounts_active))
-	print("INACTIVE: {}".format(accounts_inactive))
-
-	with open("账号active.txt", "w", encoding="utf-8") as f:
-		f.write("\n".join(accounts_active))
-
-	with open("账号inactive.txt", "w", encoding="utf-8") as f:
-		f.write("\n".join(accounts_inactive))
-
 def request_post(s):
+	keywords = []
+	links = []
+	
+	with open("keywords.txt", "r", encoding="utf-8") as f:
+		keywords = [key.rstrip() for key in f]
+
 	# upload URL http://imgur.com/upload; need to send request first in captcha URL https://imgur.com/upload/checkcaptcha
 	headers = {
 		'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36', 
@@ -230,6 +76,150 @@ def request_post(s):
 		print("An exception of type {0} occured (Proxy: {1}). Arguments:\n{2!r}".format(type(ex).__name__, proxy, ex.args))
 		update_html = s.post(update_url, data=data, headers=headers)
 	print(update_html)
+	
+
+def request_login(url, data, headers, p):
+	try:
+		s = requests.session()
+		html = s.post(url, data=data, headers=headers, proxies=p, timeout=15)
+		html_tree = etree.HTML(html.content)
+		print(html, html.status_code, data, html_tree.xpath("//div[@class='dropdown-footer']"), html_tree.xpath("//div[@class='captcha']"))
+		if html_tree.xpath("//div[@class='dropdown-footer']"):
+			# accounts_active.append("{}----{}".format(account[0], account[1]))
+			return s
+		else:
+			return None
+		s.cookies.clear()
+		s.close()
+	except Exception as ex:
+		print("{0} An exception of type {1} occured. Arguments:\n{2!r}".format(p, type(ex).__name__, ex.args))
+		return None
+
+
+def check_proxy(name, p):
+	url = 'http://httpbin.org/ip'
+	s = requests.session()
+	headers = {
+		'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'
+	}
+	proxies = {
+		'http': 'http://{}'.format(p),
+		'https': 'https://{}'.format(p),
+		'ftp': '{}'.format(p),
+	}
+	try:
+		response = s.get(url, headers=headers, proxies=proxies, timeout=3)
+		print("{} WORKING".format(p), response, json.loads(response.text)['origin'] if response.status_code == 200 else '')
+		if response.status_code == 200 and 'origin' in json.loads(response.text):
+			checked_proxies.append(p)
+	except Exception as ex:
+		print("{0} An exception of type {1} occured. Arguments:\n{2!r}".format(p, type(ex).__name__, ex.args))
+		# create function to log errors
+		pass
+	s.cookies.clear()
+	s.close()
+
+	lock.acquire()
+	lock.release()
+
+
+def get_proxies():
+	global checked_proxies
+
+	# need to add more site to scrape proxy ip address
+	url = "https://www.sslproxies.org/"
+	response = requests.get(url)
+	html_tree = etree.HTML(response.content)
+	proxys = []
+
+	for tr in html_tree.xpath("//table[@id='proxylisttable']/tbody/tr"):
+		if tr[4].text == "elite proxy" and tr[6].text == "yes":
+			proxys.append("{}:{}".format(tr[0].text, tr[1].text))
+
+	print(proxys, len(proxys))
+
+	threads_num = 2
+	checked_proxies = []
+	while proxys:
+		threads = []
+		for i in range(threads_num):
+			if proxys:
+				p = proxys.pop()
+				
+				t = threading.Thread(target = check_proxy, args = ("Thread-{}".format(i), p))
+				threads.append(t)
+				t.start()
+
+		for t in threads:
+			t.join()
+
+	print(checked_proxies, len(checked_proxies))
+	with open("checked_proxies.txt", "w", encoding="utf-8") as f:
+		f.write("\n".join(checked_proxies))
+
+
+def savecontent(links):
+	with open("saveContent.txt", "w", encoding="utf-8") as f:
+		for link in links:
+			f.write("{}\n".format(link))
+		f.close()
+
+
+def validate_account(name, url, account):
+	for p in ips:
+		if "{}----{}".format(account[0], account[1]) in active_accounts:
+				break
+
+		data = {
+			'username': account[0], 
+			'password': account[1]
+		}
+		headers = {
+			'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+			'referer': ''
+		}
+		proxies = {
+			'http': 'http://{}'.format(p),
+			'https': 'https://{}'.format(p),
+			'ftp': '{}'.format(p)
+		}
+
+		s = request_login(url, data, headers, proxies)
+
+		if type(s).__name__ is "Session":
+			if "{}----{}".format(account[0], account[1]) not in active_accounts:
+				active_accounts.append("{}----{}".format(account[0], account[1]))
+
+
+def check_accounts():
+	global active_accounts
+
+	active_accounts = []
+	
+	url = "https://imgur.com/signin?redirect=http%3A%2F%2Fimgur.com%2F"
+	threads_num = 2
+
+	for account in accounts:
+		# login
+		print("Verifying account: {}@{}".format(account[0], account[1]))
+		threads = []
+		for i in range(threads_num):
+			t = threading.Thread(target = validate_account, args = ("Thread-{}".format(i), url, account))
+			threads.append(t)
+			t.start()
+
+		for t in threads:
+			t.join()
+
+	print("ACTIVE: {}".format(active_accounts))
+	with open("账号active.txt", "w", encoding="utf8") as f:
+		f.write("\n".join(active_accounts))
+
+	with open("账号inactive.txt", "w", encoding="utf-8") as f:
+		for account in accounts:
+			if "{}----{}".format(account[0], account[1]) not in active_accounts:
+				f.write("{}----{}\n".format(account[0], account[1]))
+
 
 def get_user_agents():
 	user_agents = []
@@ -239,32 +229,14 @@ def get_user_agents():
 	random.shuffle(user_agents)
 	return user_agents
 
+
 def main():
-	keywords = []
-	links = []
-	accounts = []
-	proxy = ""
-
-	with open("keywords.txt", "r", encoding="utf-8") as f:
-		keywords = [key.rstrip() for key in f]
-
-	with open("账号active.txt", "r", encoding='utf-8') as f:
-		accounts = [tuple(account.rstrip().split("----")) for account in f]
-
-	with open("active_proxy.txt", "r", encoding='utf-8') as f:
-		proxy = [p.rstrip() for p in f] [0]
-		proxy = {
-			'http': 'http://{}'.format(proxy),
-			'https': 'https://{}'.format(proxy),
-			'ftp': '{}'.format(proxy),
-		}
-
-	url = "http://www.imgur.com"
+	domain = "http://www.imgur.com"
 	counter = 0
 	start = datetime.now()
 	start_time = time()
 
-	print("Requesting {} ({})".format(url, start))
+	print("Requesting {} ({})".format(domain, start))
 	while True:
 		s = requests.session()
 		account = accounts[counter]
@@ -301,7 +273,27 @@ def main():
 			print("Upload is running for 30m. Stop!")
 			break
 
+
 if __name__ == "__main__":
+	global accounts, ips, user_agents
+
 	get_proxies()
+
+	accounts = []
+	with open("账号.txt", "r", encoding='utf-8') as f:
+		accounts = [tuple(account.rstrip().split("----")) for account in f]
+	print("{} accounts loaded".format(len(accounts)))
+
+	ips = []
+	with open("checked_proxies.txt", "r", encoding="utf-8") as f:
+		ips = [p.rstrip() for p in f]
+	print("{} IP:PORT loaded".format(len(ips)))
+
+	user_agents = []
+	with open("user_agents.txt", "r", encoding="utf-8") as f:
+		user_agents = [ua.rstrip() for ua in f]
+	print("{} user agents loaded.".format(len(user_agents)))
+
+	check_accounts()
 	# validate() # Validate accounts
-	# main()
+	# main()	
