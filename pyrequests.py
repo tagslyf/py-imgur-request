@@ -9,54 +9,53 @@ lock = threading.Lock()
 
 
 def request_post(name, s):
-	# upload URL http://imgur.com/upload; need to send request first in captcha URL https://imgur.com/upload/checkcaptcha
-	headers = {
-		'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0', 
-		'Referer': 'https://imgur.com/',
-		'Host': 'imgur.com',
-		'Origin': 'https://imgur.com',
-		'Accept-Language': 'en-US,en;q=0.8'
-	}
+	try:
+		headers = {
+			'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0', 
+			'Referer': 'https://imgur.com/',
+			'Host': 'imgur.com',
+			'Origin': 'https://imgur.com',
+			'Accept-Language': 'en-US,en;q=0.8'
+		}
 
-	upload_captcha_url = "https://imgur.com/upload/checkcaptcha"
-	data = {
-		'total_uploads': 1,
-		'create_album': 'true'
-	}
-	upload_captcha_html = s.post(upload_captcha_url, data=data, headers=headers)
-	print(upload_captcha_url, upload_captcha_html, upload_captcha_html.content, upload_captcha_html.text, upload_captcha_html.request.headers)
+		upload_captcha_url = "https://imgur.com/upload/checkcaptcha"
+		data = {
+			'total_uploads': 1,
+			'create_album': 'true'
+		}
+		upload_captcha_html = s.post(upload_captcha_url, data=data, headers=headers)
 
-	upload_captcha_response = json.loads(upload_captcha_html.text)
+		upload_captcha_response = json.loads(upload_captcha_html.text)
 
-	post_url = "https://imgur.com/upload"
-	png_file = open('thumbnail00.png', 'rb')
-	
-	files = {
-		'Filedata': ('thumbnail00.png', png_file, 'image/png'),
-		'new_album_id': (None, upload_captcha_response['data']['new_album_id'])	
-	}
-	post_html = s.post(post_url, files=files, headers=headers)
-	print(post_url, post_html, post_html.text)
+		post_url = "https://imgur.com/upload"
+		png_file = open('thumbnail00.png', 'rb')
+		
+		files = {
+			'Filedata': ('thumbnail00.png', png_file, 'image/png'),
+			'new_album_id': (None, upload_captcha_response['data']['new_album_id'])	
+		}
+		post_html = s.post(post_url, files=files, headers=headers)
 
-	post_html_response = json.loads(post_html.text)
+		post_html_response = json.loads(post_html.text)
 
-	desc_link = "\n".join(links[-3:])
-	links.append("http://imgur.com/{}".format(post_html_response['data']['hash']))
-	print("{}. http://imgur.com/{} ({})".format(len(links), post_html_response['data']['hash'], datetime.now() - start))
+		desc_link = "\n".join(links[-3:])
+		links.append("http://imgur.com/{}".format(post_html_response['data']['hash']))
+		print("{}. http://imgur.com/{} ({})".format(len(links), post_html_response['data']['hash'], datetime.now() - start))
 
-	# Update image title and description
-	update_url = "http://imgur.com/ajax/titledesc/{}".format(post_html_response['data']['deletehash'])
-	headers = {
-		'User-agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0', 
-		'referer': 'http://imgur.com/{}'.format(post_html_response['data']['album'])
-	}
-	keyword = keywords[random.randint(0, len(keywords) - 1)]
-	data = {
-		'title': keyword,
-		'description': "{}&nbsp;&nbsp;{}\n\n{}".format(keyword, '大奖老虎机 http://www.Q82019309.com', desc_link)
-	}
-	update_html = s.post(update_url, data=data, headers=headers)
-	print(update_html)
+		# Update image title and description
+		update_url = "http://imgur.com/ajax/titledesc/{}".format(post_html_response['data']['deletehash'])
+		headers = {
+			'User-agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0', 
+			'referer': 'http://imgur.com/{}'.format(post_html_response['data']['album'])
+		}
+		keyword = keywords[random.randint(0, len(keywords) - 1)]
+		data = {
+			'title': keyword,
+			'description': "{}&nbsp;&nbsp;{}\n\n{}".format(keyword, '大奖老虎机 http://www.Q82019309.com', desc_link)
+		}
+		update_html = s.post(update_url, data=data, headers=headers)
+	except Exception as e:
+		pass
 
 
 def request_login(data, headers, p):
@@ -65,7 +64,6 @@ def request_login(data, headers, p):
 		s = requests.session()
 		html = s.post(url, data=data, headers=headers, proxies=p, timeout=15)
 		html_tree = etree.HTML(html.content)
-		print(html, html.status_code, data, html_tree.xpath("//div[@class='dropdown-footer']"), html_tree.xpath("//div[@class='captcha']"))
 		if html_tree.xpath("//div[@class='dropdown-footer']"):
 			return s
 		else:
@@ -73,7 +71,6 @@ def request_login(data, headers, p):
 		s.cookies.clear()
 		s.close()
 	except Exception as ex:
-		print("{0} An exception of type {1} occured. Arguments:\n{2!r}".format(p['ftp'], type(ex).__name__, ex.args))
 		return None
 
 
@@ -224,7 +221,7 @@ def main():
 	links = []
 	start = datetime.now()
 	start_time = time()
-	threads_num = 2
+	threads_num = 80
 
 	print("Requesting {} ({})".format(domain, start))
 	while True:
@@ -232,7 +229,6 @@ def main():
 
 		for p in ips:
 			# login
-			print("{}@{} - {}".format(account[0], account[1], p))
 			data = {
 				'username': account[0], 
 				'password': account[1]
@@ -249,8 +245,6 @@ def main():
 			s = request_login(data, headers, proxies)
 
 			if type(s).__name__ is "Session":
-				print("{} {} is logged in {}".format(account[0], account[1], p))
-
 				threads = []
 				for i in range(threads_num):
 					t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), s))
@@ -260,11 +254,17 @@ def main():
 				for t in threads:
 					t.join()
 
+				lock.acquire()
+				lock.release()
+
 				s.cookies.clear()
 				s.close()
 
 		counter += 1
-		if counter >= len(accounts):
+		if counter >= len(active_accounts):
+			if len(links) == 0:
+				print("You are uploading os fast.")
+				break
 			counter = 0
 
 		if (time() - start_time) >= 1800:
@@ -276,7 +276,7 @@ def main():
 if __name__ == "__main__":
 	global accounts, ips, user_agents
 
-	# get_proxies()
+	get_proxies()
 
 	accounts = []
 	with open("账号.txt", "r", encoding='utf-8') as f:
@@ -286,12 +286,12 @@ if __name__ == "__main__":
 	ips = []
 	with open("checked_proxies.txt", "r", encoding="utf-8") as f:
 		ips = [p.rstrip() for p in f]
-	print("{} IP:PORT loaded".format(len(ips)))
+	print("{} proxy(ip:port) loaded".format(len(ips)))
 
 	user_agents = []
 	with open("user_agents.txt", "r", encoding="utf-8") as f:
 		user_agents = [ua.rstrip() for ua in f]
 	print("{} user agents loaded.".format(len(user_agents)))
 
-	# check_accounts()
+	check_accounts()
 	main()
