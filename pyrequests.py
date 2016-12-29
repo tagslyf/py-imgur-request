@@ -8,7 +8,7 @@ from time import time
 lock = threading.Lock()
 
 
-def request_post(name, s):
+def request_post(name, s, d):
 	try:
 		headers = {
 			'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0', 
@@ -23,7 +23,22 @@ def request_post(name, s):
 			'total_uploads': 1,
 			'create_album': 'true'
 		}
-		upload_captcha_html = s.post(upload_captcha_url, data=data, headers=headers)
+		try:
+			
+			upload_captcha_html = s.post(upload_captcha_url, data=data, headers=headers)
+		except KeyError as ex:
+			print("{} {} error {}:{} TRYING TO REQUEST WITH PROXY ({})".format(d['username'], d['proxy'], type(ex).__name__, ex.args, datetime.now() - start))
+			for ip in ips:
+				try:
+					proxies = {
+						'http': 'http://{}'.format(ip),
+						'https': 'https://{}'.format(ip),
+						'ftp': '{}'.format(ip),
+					}
+					upload_captcha_html = s.post(upload_captcha_url, data=data, headers=headers, proxies=proxies)
+					break
+				except Exception as ex:
+					print("Upload captcha using {} failed. Will try again.".format(ip))
 
 		upload_captcha_response = json.loads(upload_captcha_html.text)
 
@@ -40,7 +55,9 @@ def request_post(name, s):
 
 		desc_link = "\n".join(links[-3:])
 		links.append("http://imgur.com/{}".format(post_html_response['data']['hash']))
-		print("{}. http://imgur.com/{} ({})".format(len(links), post_html_response['data']['hash'], datetime.now() - start))
+		rep['upload_summary'][d['username'].strip()]['links'].append("http://imgur.com/{}".format(post_html_response['data']['hash']))
+		rep['upload_summary'][d['username'].strip()]['total_post'] += 1
+		print("{}. {} {} http://imgur.com/{} ({})".format(len(links), d['username'], d['proxy'], post_html_response['data']['hash'], datetime.now() - start))
 
 		# Update image title and description
 		update_url = "http://imgur.com/ajax/titledesc/{}".format(post_html_response['data']['deletehash'])
@@ -54,7 +71,10 @@ def request_post(name, s):
 			'description': "{}&nbsp;&nbsp;{}\n\n{}".format(keyword, '大奖老虎机 http://www.Q82019309.com', desc_link)
 		}
 		update_html = s.post(update_url, data=data, headers=headers)
-	except Exception as e:
+	except NameError as ex:
+		print("{} {} error {}:{!r} ({})".format(d['username'], d['proxy'], type(ex).__name__, ex.args, datetime.now() - start))
+	except Exception as ex:
+		print("{} {} error {} ({})".format(d['username'], d['proxy'], type(ex).__name__, datetime.now() - start))
 		pass
 
 
@@ -65,12 +85,15 @@ def request_login(data, headers, p):
 		html = s.post(url, data=data, headers=headers, proxies=p, timeout=15)
 		html_tree = etree.HTML(html.content)
 		if html_tree.xpath("//div[@class='dropdown-footer']"):
+			print("{} {} logged in.".format(data['username'], p['ftp']))
 			return s
 		else:
+			print("{} {} Encountered captcha.".format(data['username'], p['ftp']))
 			return None
 		s.cookies.clear()
 		s.close()
 	except Exception as ex:
+		print("{} {} error {}.".format(data['username'], p['ftp'], type(ex).__name__))
 		return None
 
 
@@ -137,11 +160,16 @@ def get_proxies():
 
 
 def savecontent(links):
-	with open("saveContent.txt", "w", encoding="utf-8") as f:
-		for link in links:
-			f.write("{}\n".format(link))
-		f.close()
+	if links:
+		with open("saveContent.txt", "w", encoding="utf-8") as f:
+			for link in links:
+				f.write("{}\n".format(link))
+			f.close()
 
+	if rep:
+		with open("reports.txt", "w", encoding="utf-8") as f:
+			if rep["upload_summary"]:
+				pprint.pprint(rep, f)
 
 def validate_account(name, account):
 	for p in ips:
@@ -175,10 +203,9 @@ def check_accounts():
 	active_accounts = []
 	
 	threads_num = 2
-
+	print("Verifying accounts")
 	for account in accounts:
 		# login
-		print("Verifying account: {}@{}".format(account[0], account[1]))
 		threads = []
 		for i in range(threads_num):
 			t = threading.Thread(target = validate_account, args = ("Thread-{}".format(i), account))
@@ -191,12 +218,13 @@ def check_accounts():
 	print("ACTIVE: {}".format(active_accounts))
 	with open("账号active.txt", "w", encoding="utf8") as f:
 		f.write("\n".join(active_accounts))
+		f.close()
 
 	with open("账号inactive.txt", "w", encoding="utf-8") as f:
 		for account in accounts:
 			if "{}----{}".format(account[0], account[1]) not in active_accounts:
 				f.write("{}----{}\n".format(account[0], account[1]))
-
+		f.close()
 
 def get_user_agents():
 	user_agents = []
@@ -208,7 +236,7 @@ def get_user_agents():
 
 
 def main():
-	global active_accounts, keywords, links, start
+	global active_accounts, keywords, links, start, rep
 
 	active_accounts = []
 	with open("账号active.txt", "r", encoding="utf-8") as f:
@@ -219,58 +247,80 @@ def main():
 	with open("keywords.txt", "r", encoding="utf-8") as f:
 		keywords = [key.rstrip() for key in f]
 	links = []
+	rep = {}
+	rep['upload_summary'] = {}
 	start = datetime.now()
 	start_time = time()
-	threads_num = 80
+	threads_num = 40
 
 	print("Requesting {} ({})".format(domain, start))
-	while True:
-		account = active_accounts[counter]
+	try:
+		while True:
+			account = active_accounts[counter]
 
-		for p in ips:
-			# login
-			data = {
-				'username': account[0], 
-				'password': account[1]
-			}
-			headers = {
-				'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
-				'referer': ''
-			}
-			proxies = {
-				'http': 'http://{}'.format(p),
-				'https': 'https://{}'.format(p),
-				'ftp': '{}'.format(p)
-			}
-			s = request_login(data, headers, proxies)
+			for p in ips:
+				# login
+				data = {
+					'username': account[0], 
+					'password': account[1]
+				}
+				headers = {
+					'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+					'referer': ''
+				}
+				proxies = {
+					'http': 'http://{}'.format(p),
+					'https': 'https://{}'.format(p),
+					'ftp': '{}'.format(p)
+				}
 
-			if type(s).__name__ is "Session":
-				threads = []
-				for i in range(threads_num):
-					t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), s))
-					threads.append(t)
-					t.start()
+				if account[0] not in rep['upload_summary']:
+					rep['upload_summary'][account[0]] = {
+						'links': [],
+						'total_post': 0
+					}
 
-				for t in threads:
-					t.join()
+				s = request_login(data, headers, proxies)
 
-				lock.acquire()
-				lock.release()
+				if type(s).__name__ is "Session":
+					threads = []
+					for i in range(threads_num):
+						d = {
+							'username': account[0],
+							'proxy': p
+						}
 
-				s.cookies.clear()
-				s.close()
+						t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), s, d))
+						threads.append(t)
+						t.start()
 
-		counter += 1
-		if counter >= len(active_accounts):
-			if len(links) == 0:
-				print("You are uploading os fast.")
+					for t in threads:
+						t.join()
+
+					lock.acquire()
+					lock.release()
+
+					s.cookies.clear()
+					s.close()
+
+			counter += 1
+			if counter >= len(active_accounts):
+				if len(links) == 0:
+					print("You are uploading os fast.")
+					break
+				counter = 0
+
+			if (time() - start_time) >= 7200:
+				savecontent(links)
+				print("Upload is running for 30m. Stop!")
 				break
-			counter = 0
-
-		if (time() - start_time) >= 1800:
-			savecontent(links)
-			print("Upload is running for 30m. Stop!")
-			break
+	except KeyboardInterrupt:
+		savecontent(links)
+		print(rep)
+	except Exception as ex:
+		savecontent(links)
+		print(rep)
+		print("error {} ({}).".format(d['username'], d['proxy'], type(ex).__name__, datetime.now() - start))
 
 
 if __name__ == "__main__":
@@ -294,4 +344,4 @@ if __name__ == "__main__":
 	print("{} user agents loaded.".format(len(user_agents)))
 
 	check_accounts()
-	main()
+	# main()
