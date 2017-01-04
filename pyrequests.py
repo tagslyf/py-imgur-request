@@ -22,16 +22,30 @@ def auto_dial():
 			time.sleep(5)
 
 
-def request_post(name, s, d):
+def change_ua(ua):
+	if len(ua):
+		user_agent = ua.pop(0)
+	else:
+		user_agents = load_user_agents()
+		user_agent = user_agents.pop(0)
+	
+	headers['User-Agent'] = user_agent
+
+
+def load_user_agents():
+	with open("data/user_agents.txt", "r") as f:
+		return [k for i, k in json.loads(f.read()).items()]
+
+
+def request_post(name, s, d, h):
 	auto_dial()
 	try:
-		headers = {
-			'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0', 
-			'Referer': 'https://imgur.com/',
-			'Host': 'imgur.com',
-			'Origin': 'https://imgur.com',
-			'Accept-Language': 'en-US,en;q=0.8'
-		}
+		headers['User-Agent']		= h
+		headers['Referer'] 			= 'https://imgur.com/'
+		headers['Host']				= 'imgur.com'
+		headers['Origin']			= 'https://imgur.com'
+		headers['Accept-Language']	= 'en-US,en;q=0.8'
+		
 
 		upload_captcha_url = "https://imgur.com/upload/checkcaptcha"
 		data = {
@@ -39,6 +53,10 @@ def request_post(name, s, d):
 			'create_album': 'true'
 		}
 		upload_captcha_html = s.post(upload_captcha_url, data=data, headers=headers)
+		if 'new_album_id' not in upload_captcha_html.json()['data']:
+			print("UPLOAD CAPTCHA RESPONSE: {} - H: {}".format(upload_captcha_html.json(), upload_captcha_html.request.headers['User-Agent']))
+			change_ua(user_agents)
+			return True
 
 		upload_captcha_response = json.loads(upload_captcha_html.text)
 
@@ -61,10 +79,7 @@ def request_post(name, s, d):
 
 		# Update image title and description
 		update_url = "http://imgur.com/ajax/titledesc/{}".format(post_html_response['data']['deletehash'])
-		headers = {
-			'User-agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0', 
-			'referer': 'http://imgur.com/{}'.format(post_html_response['data']['album'])
-		}
+		headers['Referer'] = 'http://imgur.com/{}'.format(post_html_response['data']['album'])
 		keyword = keywords[random.randint(0, len(keywords) - 1)]
 		data = {
 			'title': keyword,
@@ -78,7 +93,7 @@ def request_post(name, s, d):
 		pass
 
 
-def request_login(data, headers):
+def request_login(data):
 	auto_dial()
 
 	print("Change IP done.")
@@ -91,10 +106,12 @@ def request_login(data, headers):
 		print("login for {} is successful.".format(data['username']))
 		return s
 	elif html.find("div", {"class", "captcha"}):
-		print("Captcha encountered for {} login".format(data['username']))
+		print("Captcha encountered for {} login. Current UA: {}".format(data['username'], response.request.headers['User-agent']))
+		change_ua(user_agents)
 		return None
 	else:
-		print("Error encountered for {} login {}".format(data['username'], html))
+		print("Error encountered for {} login {}".format(data['username'], response.json()))
+		return None
 
 	s.cookies.clear()
 	s.close()
@@ -102,14 +119,9 @@ def request_login(data, headers):
 
 def savecontent(links):
 	if links:
-		with open("{}/{}".format(data_dir, "saveContent.txt"), "r", encoding="utf-8") as f:
-			link_contents = [cons for cons in f] + links
-			f.close()
-
-		with open("{}/{}".format(data_dir, "saveContent.txt"), "w", encoding="utf-8") as f:
-			for link in link_contents:
+		with open("{}/{}".format(data_dir, "saveContent.txt"), "a", encoding="utf-8") as f:
+			for link in links:
 				f.write("{}\n".format(link))
-			f.close()
 
 	if rep:
 		with open("{}/{}".format(data_dir,"reports.txt"), "w", encoding="utf-8") as f:
@@ -122,12 +134,10 @@ def validate_accounts(name, account):
 			'username': account[0], 
 			'password': account[1]
 		}
-		headers = {
-			'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
-			'referer': ''
-		}
+		headers['referer'] =  ''
+
 		print("Checking if account {} is active.".format(account[0]))
-		s = request_login(data, headers)
+		s = request_login(data)
 
 		if type(s).__name__ is "Session":
 			if "{}----{}".format(account[0], account[1]) not in active_accounts:
@@ -157,7 +167,7 @@ def check_accounts():
 		threads = []
 		for i in range(threads_num):
 			if temp_accs:
-				acc = temp_accs.pop()
+				acc = temp_accs.pop(0)
 				if "{}----{}".format(acc[0], acc[1]) not in active_accounts:
 					t = threading.Thread(target = validate_accounts, args = ("Thread-{}".format(i), acc))
 					threads.append(t)
@@ -167,12 +177,7 @@ def check_accounts():
 				t.join()
 
 	print("ACTIVE: {}".format(active_accounts))
-	# with open("{}/{}".format(data_dir, "账号active.txt"), "w", encoding="utf8") as f:
-	with open("{}/{}".format(data_dir, "账号active.txt"), "r", encoding="utf8") as f:
-		accounts = [account.rstrip() for account in f] + active_accounts
-		f.close()
-
-	with open("{}/{}".format(data_dir, "账号active.txt"), "w", encoding="utf8") as f:
+	with open("{}/{}".format(data_dir, "账号active.txt"), "a", encoding="utf8") as f:
 		f.write("\n".join(accounts))
 		f.close()
 
@@ -212,10 +217,7 @@ def main():
 					'username': account[0], 
 					'password': account[1]
 				}
-				headers = {
-					'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
-					'referer': ''
-				}
+				headers['Referer'] = ''
 
 				if account[0] not in rep['upload_summary']:
 					rep['upload_summary'][account[0]] = {
@@ -224,7 +226,7 @@ def main():
 					}
 
 				print("logging in: {}".format(account[0]))
-				s = request_login(data, headers)
+				s = request_login(data)
 
 				if type(s).__name__ is "Session":
 					threads = []
@@ -233,7 +235,10 @@ def main():
 							'username': account[0]
 						}
 
-						t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), s, d))
+						if len(user_agents) == 0:
+							user_agents = load_user_agents()
+
+						t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), s, d, user_agents.pop(0)))
 						threads.append(t)
 						t.start()
 
@@ -261,9 +266,12 @@ def main():
 		print("error {} ({})".format(type(ex).__name__, datetime.now() - start))
 
 if __name__ == "__main__":
-	global data_dir, image_dir
+	global data_dir, image_dir, user_agents, headers
 	data_dir = "data"
 	image_dir = "images"
+	user_agents = load_user_agents()
+	headers = {}
+	change_ua(user_agents)
 
 	while True:
 		check_accounts()
