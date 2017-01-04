@@ -8,6 +8,27 @@ from signal import *
 lock = threading.Lock()
 
 
+def get_user_agent():
+	url = "http://www.useragentstring.com"
+	res = requests.get("{}/pages/useragentstring.php".format(url))
+	html = BeautifulSoup(res.content, "html.parser")
+	ua = {}
+	for td in html.findAll('td')[1]:
+		if td.string == 'MOBILE BROWSERS':
+			break
+
+		if td.string:
+			if td.string != 'BROWSERS':	
+				res2 = requests.get("{}{}".format(url, td['href']))
+				html2 = BeautifulSoup(res2.content, "html.parser")
+				if html2.find("li"):
+					print(td.string.lower(), html2.find("li").string)
+					ua[td.string.lower().replace(" ","").replace("-","")] = html2.find("li").string
+
+	with open("user_agents.txt", "w", encoding="utf-8") as f:
+		f.write(json.dumps(ua))
+
+
 def auto_dial():
 	make_dial = True
 	while make_dial:
@@ -270,3 +291,5 @@ if __name__ == "__main__":
 
 		print("Sleeping for 1hr...")
 		time.sleep(3600)
+
+	get_user_agent()
