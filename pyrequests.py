@@ -37,26 +37,48 @@ def load_user_agents():
 		return [k for i, k in json.loads(f.read()).items()]
 
 
-def request_post(name, s, d, h):
+def request_post(name, account, ua):
 	auto_dial()
 	try:
-		headers['User-Agent']		= h
+		print("{:15s} {:15s} {}".format(account[0], "START REQUEST", ua))
+		url = "https://imgur.com/signin?redirect=http%3A%2F%2Fimgur.com%2F"
+		s = requests.session()
+		data = {
+			'username': account[0],
+			'password': account[1]
+		}
+		headers['User-Agent']	= ua
+		headers['Referer'] 		= ''
+		print("{:15s} {:15s} {}".format(account[0], "POST LOGIN", headers['User-Agent']))
+		response = s.post(url, data=data, headers=headers, stream=True)
+		html = BeautifulSoup(response.content, "html.parser")
+		
+		if html.find("li", {"class": "account"}):
+			print("{:15s} {:15s} {}".format(account[0], "SUCCESS LOGIN", response.request.headers['User-Agent']))
+		elif html.find("div", {"class", "captcha"}):
+			print("{:15s} {:15s} {}".format(account[0], "CAPTCHA LOGIN", response.request.headers['User-Agent']))
+			return None
+		else:
+			print("{:15s} {:15s} {}".format(account[0], "ERROR LOGIN", response.request.headers['User-Agent']))
+			return None
+		
 		headers['Referer'] 			= 'https://imgur.com/'
 		headers['Host']				= 'imgur.com'
 		headers['Origin']			= 'https://imgur.com'
 		headers['Accept-Language']	= 'en-US,en;q=0.8'
 		
-
 		upload_captcha_url = "https://imgur.com/upload/checkcaptcha"
 		data = {
 			'total_uploads': 1,
 			'create_album': 'true'
 		}
+		print("{:15s} {:15s} {}".format(account[0], "SEND CUPLOAD", headers['User-Agent']))
 		upload_captcha_html = s.post(upload_captcha_url, data=data, headers=headers)
+		# response format should be like this {"data":{"overLimits":0,"upload_count":false,"new_album_id":"90Rxw","deletehash":"zP3uVDBWdasKvnF"},"success":true,"status":200}
+		# new_album_id and deletehash key is needed to upload image
 		if 'new_album_id' not in upload_captcha_html.json()['data']:
-			print("UPLOAD CAPTCHA RESPONSE: {} - H: {}".format(upload_captcha_html.json(), upload_captcha_html.request.headers['User-Agent']))
-			change_ua(user_agents)
-			return True
+			print("{:15s} {:15s} {}".format(account[0], "CAPTCHA UPLOAD", response.request.headers['User-Agent']))
+			return None
 
 		upload_captcha_response = json.loads(upload_captcha_html.text)
 
@@ -73,9 +95,9 @@ def request_post(name, s, d, h):
 
 		desc_link = "\n".join(links[-3:])
 		links.append("http://imgur.com/{}".format(post_html_response['data']['hash']))
-		rep['upload_summary'][d['username'].strip()]['links'].append("http://imgur.com/{}".format(post_html_response['data']['hash']))
-		rep['upload_summary'][d['username'].strip()]['total_post'] += 1
-		print("{}. {} http://imgur.com/{} ({})".format(len(links), d['username'], post_html_response['data']['hash'], datetime.now() - start))
+		# rep['upload_summary'][account[0].strip()]['links'].append("http://imgur.com/{}".format(post_html_response['data']['hash']))
+		# rep['upload_summary'][account[0].strip()]['total_post'] += 1
+		print("{}. {} http://imgur.com/{} ({})".format(len(links), account[0], post_html_response['data']['hash'], datetime.now() - start))
 
 		# Update image title and description
 		update_url = "http://imgur.com/ajax/titledesc/{}".format(post_html_response['data']['deletehash'])
@@ -86,10 +108,13 @@ def request_post(name, s, d, h):
 			'description': "{}&nbsp;&nbsp;{}\n\n{}".format(keyword, '大奖老虎机 http://www.Q82019309.com', desc_link)
 		}
 		update_html = s.post(update_url, data=data, headers=headers)
+		
+		s.cookies.clear()
+		s.close()
 	except NameError as ex:
-		print("{} error {}:{!r} ({})".format(d['username'], type(ex).__name__, ex.args, datetime.now() - start))
+		print("{:15s} NAMEERROR {}:{!r} ({}) {}".format(account[0], type(ex).__name__, ex.args, datetime.now() - start), ua)
 	except Exception as ex:
-		print("{} error {} ({})".format(d['username'], type(ex).__name__, datetime.now() - start))
+		print("{:15s} ERROR {}:{!r} ({}) {}".format(account[0], type(ex).__name__, ex.args, datetime.now() - start), ua)
 		pass
 
 
@@ -98,23 +123,25 @@ def request_login(data):
 
 	print("Change IP done.")
 	url = "https://imgur.com/signin?redirect=http%3A%2F%2Fimgur.com%2F"
-	s = requests.session()
-	response = s.post(url, data=data, headers=headers)
-	html = BeautifulSoup(response.content, "html.parser")
 	
-	if html.find("li", {"class": "account"}):
-		print("login for {} is successful.".format(data['username']))
-		return s
-	elif html.find("div", {"class", "captcha"}):
-		print("Captcha encountered for {} login. Current UA: {}".format(data['username'], response.request.headers['User-agent']))
-		change_ua(user_agents)
-		return None
-	else:
-		print("Error encountered for {} login {}".format(data['username'], response.json()))
-		return None
-
-	s.cookies.clear()
-	s.close()
+	headers['Referer'] = ''
+	for i, k in user_agents.items():
+		print("Request login to {}. UA: {}".format(data['username'], k))
+		headers['User-Agent'] = k
+		s = requests.session()
+		response = s.post(url, data=data, headers=headers)
+		html = BeautifulSoup(response.content, "html.parser")
+		
+		if html.find("li", {"class": "account"}):
+			print("login for {} is successful. UA: {}".format(data['username'], response.request.headers['User-Agent']))
+			return s
+		elif html.find("div", {"class", "captcha"}):
+			print("Captcha encountered for {} login. UA: {}".format(data['username'], response.request.headers['User-agent']))
+		else:
+			print("Error encountered for {} login. UA: {}".format(data['username'], response.request.headers['User-agent']))
+		s.cookies.clear()
+		s.close()
+	return None
 
 
 def savecontent(links):
@@ -162,19 +189,8 @@ def check_accounts():
 	threads_num = 2
 
 	temp_accs = accounts
-	while temp_accs:
-		# login
-		threads = []
-		for i in range(threads_num):
-			if temp_accs:
-				acc = temp_accs.pop(0)
-				if "{}----{}".format(acc[0], acc[1]) not in active_accounts:
-					t = threading.Thread(target = validate_accounts, args = ("Thread-{}".format(i), acc))
-					threads.append(t)
-					t.start()
-
-			for t in threads:
-				t.join()
+	for acc in temp_accs:
+		validate_accounts('', acc)
 
 	print("ACTIVE: {}".format(active_accounts))
 	with open("{}/{}".format(data_dir, "账号active.txt"), "a", encoding="utf8") as f:
@@ -192,7 +208,8 @@ def main():
 
 	active_accounts = []
 	with open("{}/{}".format(data_dir, "账号active.txt"), "r", encoding="utf-8") as f:
-		active_accounts = [tuple(acc.rstrip().split("----")) for acc in f]
+		if f.read():
+			active_accounts = [tuple(acc.rstrip().split("----")) for acc in f]
 	print("{} accounts loaded to process upload.".format(len(active_accounts)))
 	domain = "http://www.imgur.com"
 	counter = 0
@@ -212,44 +229,14 @@ def main():
 			if active_accounts:
 				account = active_accounts[counter]
 
-				# login
-				data = {
-					'username': account[0], 
-					'password': account[1]
-				}
-				headers['Referer'] = ''
-
 				if account[0] not in rep['upload_summary']:
 					rep['upload_summary'][account[0]] = {
 						'links': [],
 						'total_post': 0
 					}
 
-				print("logging in: {}".format(account[0]))
-				s = request_login(data)
-
-				if type(s).__name__ is "Session":
-					threads = []
-					for i in range(threads_num):
-						d = {
-							'username': account[0]
-						}
-
-						if len(user_agents) == 0:
-							user_agents = load_user_agents()
-
-						t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), s, d, user_agents.pop(0)))
-						threads.append(t)
-						t.start()
-
-					for t in threads:
-						t.join()
-
-					lock.acquire()
-					lock.release()
-
-					s.cookies.clear()
-					s.close()
+				for i, k in user_agents.items():
+					request_post(i, account, k)
 
 			counter += 1
 			if counter >= len(active_accounts):
@@ -265,17 +252,120 @@ def main():
 		print(rep)
 		print("error {} ({})".format(type(ex).__name__, datetime.now() - start))
 
+
+def single_post():
+	image_dir = "images"
+	data_dir = "data"
+	start = datetime.now()
+	start_time = time.time()
+	rep = {}
+	with open("{}/{}".format(data_dir, "keywords.txt"), "r", encoding="utf-8") as f:
+		keywords = [key.rstrip() for key in f]
+
+		user_agents = {}
+		links = []
+		data_accounts = []
+		with open("data/账号.txt", "r") as f:
+			data_accounts = [tuple(acc.rstrip().split("----")) for acc in f.readlines()]
+		with open("data/user_agents.txt", "r") as f:
+			user_agents = json.loads(f.read())
+
+		url = "https://imgur.com/signin?redirect=http%3A%2F%2Fimgur.com%2F"
+		
+		
+		headers = {}
+		headers['Referer'] 		= ''
+		for key, value in user_agents.items():
+			headers['User-Agent']	= value
+			for account in data_accounts:
+				data = {
+					'username': account[0],
+					'password': account[1]
+				}
+				
+				# print("{:15s} {:15s} {}".format(account[0], "POST LOGIN", headers['User-Agent']))
+				s = requests.session()
+				response = s.post(url, data=data, headers=headers, stream=True)
+				html = BeautifulSoup(response.content, "html.parser")
+				
+				if html.find("li", {"class": "account"}):
+					print("{:15s} {:15s} {}".format(account[0], "SUCCESS LOGIN", response.request.headers['User-Agent']))
+				elif html.find("div", {"class", "captcha"}):
+					print("{:15s} {:15s} {}".format(account[0], "CAPTCHA LOGIN", response.request.headers['User-Agent']))
+					s.cookies.clear()
+					s.close()
+					continue
+				else:
+					print("{:15s} {:15s} {}".format(account[0], "ERROR LOGIN", response.request.headers['User-Agent']))
+					s.cookies.clear()
+					s.close()
+					continue
+			
+				headers['Referer'] 			= 'https://imgur.com/'
+				headers['Host']				= 'imgur.com'
+				headers['Origin']			= 'https://imgur.com'
+				headers['Accept-Language']	= 'en-US,en;q=0.8'
+				
+				upload_captcha_url = "https://imgur.com/upload/checkcaptcha"
+				data = {
+					'total_uploads': 1,
+					'create_album': 'true'
+				}
+				print("{:15s} {:15s} {}".format(account[0], "SEND CUPLOAD", headers['User-Agent']))
+				upload_captcha_html = s.post(upload_captcha_url, data=data, headers=headers)
+				# response format should be like this {"data":{"overLimits":0,"upload_count":false,"new_album_id":"90Rxw","deletehash":"zP3uVDBWdasKvnF"},"success":true,"status":200}
+				# new_album_id and deletehash key is needed to upload image
+				if 'new_album_id' not in upload_captcha_html.json()['data']:
+					print("{:15s} {:15s} {}".format(account[0], "CAPTCHA UPLOAD", response.request.headers['User-Agent']))
+					return None
+
+				upload_captcha_response = json.loads(upload_captcha_html.text)
+
+				for i in range(20):
+					post_url = "https://imgur.com/upload"
+					png_file = open("{}/{}".format(image_dir, 'image00.jpg'), 'rb')
+					
+					files = {
+						'Filedata': ('image00.jpg', png_file, 'image/jpg'),
+						'new_album_id': (None, upload_captcha_response['data']['new_album_id'])	
+					}
+					post_html = s.post(post_url, files=files, headers=headers)
+
+					post_html_response = json.loads(post_html.text)
+
+					desc_link = "\n".join(links[-3:])
+					links.append("http://imgur.com/{}".format(post_html_response['data']['hash']))
+					rep['upload_summary'][account[0].strip()]['links'].append("http://imgur.com/{}".format(post_html_response['data']['hash']))
+					rep['upload_summary'][account[0].strip()]['total_post'] += 1
+					print("{}. {} http://imgur.com/{} ({})".format(len(links), account[0], post_html_response['data']['hash'], datetime.now() - start))
+
+					# Update image title and description
+					update_url = "http://imgur.com/ajax/titledesc/{}".format(post_html_response['data']['deletehash'])
+					headers['Referer'] = 'http://imgur.com/{}'.format(post_html_response['data']['album'])
+					keyword = keywords[random.randint(0, len(keywords) - 1)]
+					data = {
+						'title': keyword,
+						'description': "{}&nbsp;&nbsp;{}\n\n{}".format(keyword, '大奖老虎机 http://www.Q82019309.com', desc_link)
+					}
+					update_html = s.post(update_url, data=data, headers=headers)
+				
+				s.cookies.clear()
+				s.close()	
+
+
 if __name__ == "__main__":
 	global data_dir, image_dir, user_agents, headers
 	data_dir = "data"
 	image_dir = "images"
-	user_agents = load_user_agents()
+	with open("data/user_agents.txt", "r") as f:
+		user_agents =  json.loads(f.read())
+	# user_agents = load_user_agents()
 	headers = {}
-	change_ua(user_agents)
 
-	while True:
-		check_accounts()
-		main()
+	single_post()
+	# while True:
+		# check_accounts()
+		# main()
 
-		print("Sleeping for 1hr...")
-		time.sleep(3600)
+		# print("Sleeping for 1hr...")
+		# time.sleep(3600)

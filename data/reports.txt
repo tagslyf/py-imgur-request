@@ -1,2 +1,1 @@
-{'upload_summary': {'mmkronald': {'links': [], 'total_post': 0},
-                    'mmktest00': {'links': [], 'total_post': 0}}}
+{'upload_summary': {'mmkronald': {'links': [], 'total_post': 0}}}
