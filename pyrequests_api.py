@@ -77,9 +77,21 @@ def get_proxies():
 	with open("data/pyrequests_api/checked_proxies.txt", "w", encoding="utf-8") as f:
 		f.write("\n".join(checked_proxies))
 
-def request_api(name, url, headers, data, proxys):
+def request_api(name, url, headers, proxys):
+	desc = "{}&nbsp;&nbsp;{}\n\n{}"
+	desc_website = "大奖老虎机 http://www.Q82019309.com"
+	img_file = open("images/thumbnail00.jpg", "rb").read()
+
 	for i in range(req_limit):
 		try:
+			keyword = keywords[random.randint(0, len(keywords) - 1)]
+			desc_link = "\n".join(["{}----{}".format(keywords[random.randint(0, len(keywords) - 1)], l) for l in links[-3:]])
+			data = {
+				'image': b64encode(img_file),
+				'title': keyword,
+				'description': desc.format(keyword, desc_website, desc_link)
+			}
+
 			response = requests.post(url, headers=headers, data=data, proxies=proxys, timeout=5)
 			if response.status_code == 200:
 				response_data = response.json()['data']
@@ -87,8 +99,10 @@ def request_api(name, url, headers, data, proxys):
 				links.append(link)
 				with open("data/pyrequests_api/saveContent.txt", "a", encoding="utf-8") as f:
 					f.write("{}\n".format(link))
+				with open("data/saveContent.txt", "a", encoding="utf-8") as f:
+					f.write("{}\n".format(link))
 				# print("{}. {} ({})".format(len(links) + 1, link, proxys['ftp']))
-				print("{}. {} ({})".format(len(links), link, datetime.now() - start)) # temporary for testing of proxymesh
+				print("{}. {} ({} {})".format(len(links), link, datetime.now() - start, name)) # temporary for testing of proxymesh
 
 			else:
 				print("Error: {} {} {} {}".format(name, i + 1, response, "{}".format(response.json()['data']['error']) if response.json() else response.text))
@@ -176,30 +190,19 @@ def proxymesh_api():
 	headers = {}
 	headers['Authorization'] = "Client-ID e8e0297762a5593"
 
-	img_file = open("images/thumbnail00.png", "rb").read()
-	files = {'Filedata': ("thumbnail00.png", img_file, "image/png")}
-
+	# proxys = {
+	# 	'http': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280', 
+	# 	'https': 'https://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280'
+	# }
 	proxys = {
-		'http': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280', 
-		'https': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280'
+		'http': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280',
+		'https': 'https://winner88mmk:qweasd321@fr.proxymesh.com:31280'
 	}
-
-	keyword = keywords[random.randint(0, len(keywords) - 1)]
-	desc = "{}&nbsp;&nbsp;{}\n\n{}"
-	desc_link = "\n".join(links[-3:])
-	desc_website = "大奖老虎机 http://www.Q82019309.com"
-
-	data = {
-		'image': b64encode(img_file),
-		'title': keyword,
-		'description': desc.format(keyword, desc_website, desc_link)
-	}
-
 	print("Start API request. ({})".format(datetime.now()))
 	while True:
 		threads = []
 		for i in range(threads_num):
-			t = threading.Thread(target = request_api, args = ("Thread-{}".format(i), url, headers, data, proxys))
+			t = threading.Thread(target = request_api, args = ("Thread-{}".format(i), url, headers, proxys))
 			threads.append(t)
 			t.start()
 

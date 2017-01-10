@@ -77,10 +77,12 @@ def request_post(name, p, account, user_agent):
 			response = s.post(url, files=files, headers=headers, proxies=p, timeout=15)
 			response_json = json.loads(response.text)
 
-			desc_link = "\n".join(links[-3:])
+			
 			links.append("http://imgur.com/{}".format(response_json['data']['hash']))
 			print("{}. http://imgur.com/{} ({} {} {})".format(len(links), response_json['data']['hash'], datetime.now() - start, name, account[0]))
 			with open("data/pyrequests_x3/saveContent.txt", "a", encoding="utf-8") as f:
+				f.write("http://imgur.com/{}\n".format(response_json['data']['hash']))
+			with open("data/saveContent.txt", "a", encoding="utf-8") as f:
 				f.write("http://imgur.com/{}\n".format(response_json['data']['hash']))
 		except KeyboardInterrupt as ex:
 			print("Ooopsy...")
@@ -93,12 +95,15 @@ def request_post(name, p, account, user_agent):
 		url = "http://imgur.com/ajax/titledesc/{}".format(response_json['data']['deletehash'])
 		headers['Referer'] = "http://imgur.com/{}".format(response_json['data']['album'])
 		keyword = keywords[random.randint(0, len(keywords) - 1)]
-		data = {
+		desc = "{}&nbsp;&nbsp;{}\n\n{}"
+		desc_link = "\n".join(["{}----{}".format(keywords[random.randint(0, len(keywords) - 1)], l) for l in links[-3:]])
+		desc_website = "大奖老虎机 http://www.Q82019309.com"
+		update_data = {
 			'title': keyword,
-			'description': "{} {}&nbsp;&nbsp;{}\n\n{}".format(i, keyword, "大奖老虎机 http://www.Q82019309.com", desc_link)
+			'description': desc.format(keyword, desc_website.replace('.', '&#46;'), desc_link.replace('.', '&#46;'))
 		}
 		try:
-			update_html = s.post(url, data=data, headers=headers, proxies=p, timeout=5)
+			update_html = s.post(url, headers=headers, data=update_data, proxies=p, timeout=5)
 		except KeyboardInterrupt as ex:
 			print("Ooopsy...")
 		except Exception as ex:
@@ -178,30 +183,29 @@ def get_proxies():
 		f.write("\n".join(checked_proxies))
 
 
-def validate_account(name, account):
-	for p in ips:
-		if "{}----{}".format(account[0], account[1]) in active_accounts:
-				break
+# def validate_account(name, account):
+# 	# for p in ips:
+# 	# if "{}----{}".format(account[0], account[1]) in active_accounts:
+# 	# 	break
 
-		data = {
-			'username': account[0], 
-			'password': account[1]
-		}
-		headers = {
-			'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
-			'referer': ''
-		}
-		proxies = {
-			'http': 'http://{}'.format(p),
-			'https': 'https://{}'.format(p),
-			'ftp': '{}'.format(p)
-		}
+# 	data = {
+# 		'username': account[0], 
+# 		'password': account[1]
+# 	}
+# 	headers = {
+# 		'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+# 		'referer': ''
+# 	}
+# 	proxys = {
+# 		'http': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280', 
+# 		'https': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280'
+# 	}
 
-		s = request_login(data, headers, proxies)
+# 	s = request_login(data, headers, proxys)
 
-		if type(s).__name__ is "Session":
-			if "{}----{}".format(account[0], account[1]) not in active_accounts:
-				active_accounts.append("{}----{}".format(account[0], account[1]))
+# 	if type(s).__name__ is "Session":
+# 		if "{}----{}".format(account[0], account[1]) not in active_accounts:
+# 			active_accounts.append("{}----{}".format(account[0], account[1]))
 
 
 def main():
@@ -279,9 +283,13 @@ def main_proxymesh():
 	start = datetime.now()
 	threads_num = 5
 
+	# proxys = {
+	# 	'http': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280', 
+	# 	'https': 'https://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280'
+	# }
 	proxys = {
-		'http': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280', 
-		'https': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280'
+		'http': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280', 
+		'https': 'https://winner88mmk:qweasd321@fr.proxymesh.com:31280'
 	}
 
 	print("Requesting {} ({})".format(domain, start))
@@ -323,9 +331,13 @@ def validate_account():
 	
 	headers= {}
 	headers['Referer'] = ""
+	# proxys = {
+	# 	'http': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280', 
+	# 	'https': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280'
+	# }
 	proxys = {
-		'http': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280', 
-		'https': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280'
+		'http': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280', 
+		'https': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280'
 	}
 	for i, account in enumerate(accounts):
 		data = {
