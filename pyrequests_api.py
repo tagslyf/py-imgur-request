@@ -1,8 +1,10 @@
-import json, random, requests, sys, threading, time
+import json, os, random, requests, sys, threading, time
 from base64 import b64encode
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from lxml import etree
+from os import listdir
+from os.path import isfile
 
 lock = threading.Lock()
 
@@ -78,9 +80,11 @@ def get_proxies():
 		f.write("\n".join(checked_proxies))
 
 def request_api(name, url, headers, proxys):
+	IMAGE_DIR = "images/"
 	desc = "{}&nbsp;&nbsp;{}\n\n{}"
 	desc_website = "大奖老虎机 http://www.Q82019309.com"
-	img_file = open("images/thumbnail00.jpg", "rb").read()
+	images = [f for f in listdir(IMAGE_DIR) if isfile("{}{}".format(IMAGE_DIR, f))]
+	img_file = open("{}{}".format(IMAGE_DIR, random.choice(images)), "rb").read()
 
 	for i in range(req_limit):
 		try:
@@ -137,17 +141,6 @@ def main():
 	headers = {}
 	headers['Authorization'] = "Client-ID e8e0297762a5593"
 
-	keyword = keywords[random.randint(0, len(keywords) - 1)]
-	desc = "{}&nbsp;&nbsp;{}\n\n{}"
-	desc_link = "\n".join(links[-3:])
-	desc_website = "大奖老虎机 http://www.Q82019309.com"
-
-	data = {
-		'image': b64encode(img_file),
-		'title': keyword,
-		'description': desc.format(keyword, desc_website, desc_link)
-	}
-
 	print("Start API request.")
 	while True:
 		proxys = {
@@ -158,7 +151,7 @@ def main():
 
 		threads = []
 		for i in range(threads_num):
-			t = threading.Thread(target = request_api, args = ("Thread-{}".format(i), url, headers, data, proxys))
+			t = threading.Thread(target = request_api, args = ("Thread-{}".format(i), url, headers, proxys))
 			threads.append(t)
 			t.start()
 
@@ -190,13 +183,9 @@ def proxymesh_api():
 	headers = {}
 	headers['Authorization'] = "Client-ID e8e0297762a5593"
 
-	# proxys = {
-	# 	'http': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280', 
-	# 	'https': 'https://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280'
-	# }
 	proxys = {
-		'http': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280',
-		'https': 'https://winner88mmk:qweasd321@fr.proxymesh.com:31280'
+		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280',
+		'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
 	}
 	print("Start API request. ({})".format(datetime.now()))
 	while True:

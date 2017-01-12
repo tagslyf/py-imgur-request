@@ -2,6 +2,8 @@ import json, os, pprint, random, re, requests, sys, threading, time, uuid
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from lxml import etree
+from os import listdir
+from os.path import isfile
 from signal import *
 
 
@@ -10,6 +12,8 @@ lock = threading.Lock()
 
 def request_post(name, p, account, user_agent):
 	s = requests.session()
+
+	images = [f for f in listdir(IMAGE_DIR) if isfile("{}{}".format(IMAGE_DIR, f))]
 
 	# Login start
 	url = "https://imgur.com/signin?redirect=http%3A%2F%2Fimgur.com%2F"
@@ -66,10 +70,11 @@ def request_post(name, p, account, user_agent):
 	for i in range(100):
 		# upload image start
 		url = "https://imgur.com/upload"
-		png_file = open("images/thumbnail00.jpg", "rb")
+		img_filename = random.choice(images)
+		img_file = open("{}{}".format(IMAGE_DIR, img_filename), "rb")
 
 		files = {
-			'Filedata': ("thumbnail00.jpg", png_file, "image/jpg"),
+			'Filedata': (img_filename, img_file, "image/{}".format(img_filename[img_filename.index(".") + 1:])),
 			'new_album_id': (None, captcha_response_json['data']['new_album_id'])	
 		}
 		desc_link = ""
@@ -156,10 +161,11 @@ def get_proxies():
 	# Proxy available from this site http://www.kuaidaili.com/free/outtr/
 	url = "http://www.kuaidaili.com/free/outtr/"
 	response = requests.get(url)
-	html = BeautifulSoup(response.content, "html.parser")
-	for tr in html.find("table").findAll("tr"):
-		if tr.find("td"):
-			proxys.append("{}:{}".format(tr.find("td", {'data-title': "IP"}).string,tr.find("td", {'data-title': "PORT"}).string))
+	if response.status_code == 200:
+		html = BeautifulSoup(response.content, "html.parser")
+		for tr in html.find("table").findAll("tr"):
+			if tr.find("td"):
+				proxys.append("{}:{}".format(tr.find("td", {'data-title': "IP"}).string,tr.find("td", {'data-title': "PORT"}).string))
 
 	print(proxys, len(proxys))
 
@@ -183,41 +189,20 @@ def get_proxies():
 		f.write("\n".join(checked_proxies))
 
 
-# def validate_account(name, account):
-# 	# for p in ips:
-# 	# if "{}----{}".format(account[0], account[1]) in active_accounts:
-# 	# 	break
-
-# 	data = {
-# 		'username': account[0], 
-# 		'password': account[1]
-# 	}
-# 	headers = {
-# 		'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
-# 		'referer': ''
-# 	}
-# 	proxys = {
-# 		'http': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280', 
-# 		'https': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280'
-# 	}
-
-# 	s = request_login(data, headers, proxys)
-
-# 	if type(s).__name__ is "Session":
-# 		if "{}----{}".format(account[0], account[1]) not in active_accounts:
-# 			active_accounts.append("{}----{}".format(account[0], account[1]))
-
-
 def main():
 	global accounts, domain, headers, keywords, links, proxies, start, user_agents
 
 	proxies = []
 	with open("data/pyrequests_x3/checked_proxies.txt", "r") as f:
 		for proxy in f.readlines():
-			proxies.append(proxy.strip())
+			px = {
+				'http': 'http://{}'.format(proxy), 
+				'https': 'https://{}'.format(proxy)
+			}
+			proxies.append(px)
 
 	accounts = []
-	with open("data/pyrequests_x3/账号.txt", "r") as f:
+	with open("data/pyrequests_x3/账号active.txt", "r") as f:
 		for account in f.readlines():
 			accounts.append(tuple(account.strip().split("----")))
 
@@ -258,7 +243,7 @@ def main():
 		lock.release()
 
 def main_proxymesh():
-	global accounts, domain, headers, keywords, links, proxies, start, user_agents
+	global accounts, domain, headers, IMAGE_DIR, keywords, links, proxies, start, user_agents
 
 	accounts = []
 	with open("data/pyrequests_x3/账号active.txt", "r") as f:
@@ -280,21 +265,15 @@ def main_proxymesh():
 	print("{} user-agents loaded.".format(len(user_agents)))
 
 	domain = "http://www.imgur.com"
+	IMAGE_DIR = "images/"
 	start = datetime.now()
 	threads_num = 5
 
-	# proxys = {
-	# 	'http': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280', 
-	# 	'https': 'https://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280'
-	# }
 	proxys = {
-		'http': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280', 
-		'https': 'https://winner88mmk:qweasd321@fr.proxymesh.com:31280'
+		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280', 
+		'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
 	}
-
 	print("Requesting {} ({})".format(domain, start))
-	# random.shuffle(accounts)
-	# random.shuffle(user_agents)
 	counter = 0
 	threads = []
 	while True:
@@ -331,13 +310,9 @@ def validate_account():
 	
 	headers= {}
 	headers['Referer'] = ""
-	# proxys = {
-	# 	'http': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280', 
-	# 	'https': 'http://ronald.ta@lead-surf.com:123qwe!!@fr.proxymesh.com:31280'
-	# }
 	proxys = {
-		'http': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280', 
-		'https': 'http://winner88mmk:qweasd321@fr.proxymesh.com:31280'
+		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280', 
+		'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
 	}
 	for i, account in enumerate(accounts):
 		data = {
