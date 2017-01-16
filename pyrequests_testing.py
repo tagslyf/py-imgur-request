@@ -1,6 +1,7 @@
 import json, os, random, requests, sys
 from bs4 import BeautifulSoup
 from datetime import datetime
+from urllib.parse import urlencode
 
 def do_request():
 	global accounts
@@ -164,34 +165,46 @@ def check_proxymesh_ip():
 
 
 def request_api():
+	titles = []
+	with open("data/titles.txt", "r") as f:
+		titles = [key.rstrip() for key in f.readlines()]
+	promos = []
+	with open("data/promos.txt", "r") as f:
+		promos = [key.rstrip() for key in f.readlines()]
+	contents = []
+	with open("data/contents.txt", "r") as f:
+		contents = [key.rstrip() for key in f.readlines()]
+
 	url = "https://api.imgur.com/3/image"
 
 	headers = {}
 	headers['Authorization'] = "Client-ID e8e0297762a5593"
+	headers['Content-Type'] = "application/x-www-form-urlencoded; charset=UTF-8"
 
 	image_urls = ['http://i.imgur.com/4BoBLeK.jpg', 'https://i.imgbox.com/5eveR18P.jpg', 'http://i64.tinypic.com/n5mudx.jpg', 'http://thumbsnap.com/i/WOv9HaHv.jpg?0116']
-	keywords = []
-	with open("data/keywords.txt", "r") as f:
-		keywords = [key.rstrip() for key in f.readlines()]
-	keyword = keywords[random.randint(0, len(keywords) - 1)]
-	desc = "{}&nbsp;&nbsp;{}\n\n{}\n\n{}"
-	desc_website = "大奖老虎机 http://www.djyl18.com"
-	descriptions = []
-	with open("data/descriptions.txt", "r") as f:
-		descriptions = [key.rstrip() for key in f.readlines()]
-	description = random.choice(descriptions)
+	desc = "{}\n\n\n{}\n\n{}"
+	title = titles[random.randint(0, len(titles) - 1)]
+	titles = ['大奖捕鱼网 http://www.djyl18.com', '大奖信誉场 http://www.djyl18.com', '大奖网站 http://www.djyl18.com']
+	random.shuffle(promos)
+	promo = random.choice(promos)
+	random.shuffle(contents)
+	content = "	{}\n\n".format(", ".join(contents[:random.randint(5,10)]))
+	for n in range(random.randint(2,3)):
+		random.shuffle(contents)
+		content += "	{}\n".format(", ".join(contents[:random.randint(5,10)]))
 	links = ['http://imgur.com/RRR8Xxo', 'http://imgur.com/pT9gQCk', 'http://imgur.com/pJ7at7m']
-	desc_link = "\n".join(["{}----{}".format(keywords[random.randint(0, len(keywords) - 1)], l) for l in links[-3:]])
+	desc_link = "\n".join(["{} ---- {}".format(titles[random.randint(0, len(titles) - 1)], l) for l in links[-3:]])
 	data = {
 		'image': random.choice(image_urls),
-		'title': keyword,
-		'description': desc.format(keyword, desc_website, description.replace("www.djyl18.com", " http://www.djyl18.com"), desc_link)
+		'title': title,
+		'description': desc.format(promo, content, desc_link).replace('.', '&#46;')
 	}
 	proxys = {
 		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280',
 		'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
 	}
-	response = requests.post(url, headers=headers, data=data, proxies=proxys, timeout=15)
+	# response = requests.post(url, headers=headers, data=data, proxies=proxys, timeout=15)
+	response = requests.post(url, headers=headers, data=urlencode(data), timeout=15)
 	print(response)
 	print(response.json())
 	

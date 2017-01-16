@@ -12,9 +12,8 @@ lock = threading.Lock()
 
 def request_post(name, p, account, user_agent, proxymesh_ip):
 	s = requests.session()
-
-	images = [f for f in listdir(IMAGE_DIR) if isfile("{}{}".format(IMAGE_DIR, f))]
-
+	# images = [f for f in listdir(IMAGE_DIR) if isfile("{}{}".format(IMAGE_DIR, f))]
+	images = ['http://i.imgur.com/4BoBLeK.jpg', 'https://i.imgbox.com/5eveR18P.jpg', 'http://i64.tinypic.com/n5mudx.jpg', 'http://thumbsnap.com/i/WOv9HaHv.jpg?0116']
 	# Login start
 	url = "https://imgur.com/signin?redirect=http%3A%2F%2Fimgur.com%2F"
 	data = {
@@ -24,30 +23,22 @@ def request_post(name, p, account, user_agent, proxymesh_ip):
 	headers['User-Agent'] 	= user_agent
 	headers['Referer'] 		= ""
 	headers['X-ProxyMesh-IP'] = proxymesh_ip
-
 	try:
 		response 	= s.post(url, data=data, headers=headers, proxies=p, timeout=5)
 		html 		= BeautifulSoup(response.content, "html.parser")
-		if html.find("li", {"class": "account"}):
-			# print("{} {} {} LOGIN OK".format(name, p, account[0]))
-			print("{} {} LOGIN OK".format(name, account[0]))
-		elif html.find("div", {"class", "captcha"}):
-			# print("{} {} {} LOGIN CAPTCHA".format(name, p, account[0]))
-			print("{} {} LOGIN CAPTCHA".format(name, account[0]))
-			write_upload_log(proxymesh_ip, account[0], "Captcha encountered in login.")
-			return None
-		else:
-			print("{} {} LOGIN ERROR {}".format(name, account[0], response))
-			write_upload_log(proxymesh_ip, account[0], "Error in login {}.".format(response))
-			return None
 	except KeyboardInterrupt as ex:
 		print("Ooopsy...")
 	except Exception as ex:
 		type, value, traceback = sys.exc_info()
-		print("REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 		write_upload_log(proxymesh_ip, account[0], "REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 		return None
-
+	else:
+		if html.find("div", {"class", "captcha"}):
+			write_upload_log(proxymesh_ip, account[0], "Captcha encountered in login.")
+			return None
+		else:
+			write_upload_log(proxymesh_ip, account[0], "Error in login {}.".format(response))
+			return None
 	# Check captcha upload image start
 	url = "https://imgur.com/upload/checkcaptcha"
 	data = {
@@ -62,25 +53,19 @@ def request_post(name, p, account, user_agent, proxymesh_ip):
 		response = s.post(url, data=data, headers=headers, proxies=p, timeout=5)
 		captcha_response_json = json.loads(response.text)
 		if 'new_album_id' not in captcha_response_json['data']:
-			print("{} {} UPLOAD CHECK CAPTCHA FAILED {}".format(name, account[0], captcha_response_json['data']))
 			write_upload_log(proxymesh_ip, account[0], "Captcha encountered before uploading. Data: {}".format(captcha_response_json['data']))
 			return None
 	except KeyboardInterrupt as ex:
 		print("Ooopsy...")
 	except Exception as ex:
 		type, value, traceback = sys.exc_info()
-		print("REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 		write_upload_log(proxymesh_ip, account[0], "REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 		return None
-
-	for i in range(36):
+	while True:
 		# upload image start
 		url = "https://imgur.com/upload"
-		img_filename = random.choice(images)
-		img_file = open("{}{}".format(IMAGE_DIR, img_filename), "rb")
-
 		files = {
-			'Filedata': (img_filename, img_file, "image/{}".format(img_filename[img_filename.index(".") + 1:])),
+			'url': (random.choice(images),),
 			'new_album_id': (None, captcha_response_json['data']['new_album_id'])	
 		}
 		desc_link = ""
@@ -91,14 +76,12 @@ def request_post(name, p, account, user_agent, proxymesh_ip):
 			print("Ooopsy...")
 		except Exception as ex:
 			type, value, traceback = sys.exc_info()
-			print("REQUESTS ERROR: {}({}@{} line#{}) - {}".format(type.__name__, name, account[0], traceback.tb_lineno, value))
 			write_upload_log(proxymesh_ip, account[0], "REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 			continue
 		else:
 			if 'deletehash' not in response_json['data']:
 				write_upload_log(proxymesh_ip, account[0], "Got an invalid response in upload. Data: {}".format(response_json['data']))
 				break
-
 		# Update image title and description start
 		url = "http://imgur.com/ajax/titledesc/{}".format(response_json['data']['deletehash'])
 		headers['Referer'] = "http://imgur.com/{}".format(response_json['data']['album'])
@@ -110,18 +93,17 @@ def request_post(name, p, account, user_agent, proxymesh_ip):
 		description = random.choice(descriptions)
 		update_data = {
 			'title': keyword,
-			'description': desc.format(keyword, desc_website.replace('.', '&#46;'), description.replace('.', '&#46;').replace("www.djyl18.com", " http://www.djyl18.com"), desc_link.replace('.', '&#46;'))
+			'description': desc.format(keyword, desc_website, description, desc_link)
 		}
+		update_data['description'].replace('.', '&#46;')
 		try:
 			update_html = s.post(url, headers=headers, data=update_data, proxies=p, timeout=5)
 		except KeyboardInterrupt as ex:
 			print("Ooopsy...")
 		except Exception as ex:
 			type, value, traceback = sys.exc_info()
-			print("REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 			write_upload_log(proxymesh_ip, account[0], "REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 			continue
-
 		links.append("http://imgur.com/{}".format(response_json['data']['hash']))
 		print("{}. http://imgur.com/{} ({} {} {})".format(len(links), response_json['data']['hash'], datetime.now() - start, name, account[0]))
 		write_upload_log(proxymesh_ip, account[0], "http://imgur.com/{} ({})".format(response_json['data']['hash'], name))
@@ -160,30 +142,18 @@ def check_proxy(name, p):
 
 def get_proxies():
 	global checked_proxies
-
 	# need to add more site to scrape proxy ip address
 	# Proxy available from this site https://www.sslproxies.org/
 	url = "https://www.sslproxies.org/"
 	response = requests.get(url)
-	html_tree = etree.HTML(response.content)
+	html = BeautifulSoup(response.content, "html.parser")
 	proxys = []
-
-	for tr in html_tree.xpath("//table[@id='proxylisttable']/tbody/tr"):
-		if tr[4].text == "elite proxy" and tr[6].text == "yes":
-			proxys.append("{}:{}".format(tr[0].text, tr[1].text))
-
-	# Proxy available from this site http://www.kuaidaili.com/free/outtr/
-	url = "http://www.kuaidaili.com/free/outtr/"
-	response = requests.get(url)
-	if response.status_code == 200:
-		html = BeautifulSoup(response.content, "html.parser")
-		for tr in html.find("table").findAll("tr"):
-			if tr.find("td"):
-				proxys.append("{}:{}".format(tr.find("td", {'data-title': "IP"}).string,tr.find("td", {'data-title': "PORT"}).string))
-
-	print(proxys, len(proxys))
-
-	threads_num = 2
+	for tr in html.find("table", {'id': "proxylisttable"}).find('tbody').findAll ('tr'):
+		if tr:
+			tds = tr.findAll('td')
+			if tds[4].string == 'elite proxy' and tds[6].string == 'yes':
+				proxys.append("{}:{}".format(tds[0].string, tds[1].string))
+	threads_num = 10
 	checked_proxies = []
 	while proxys:
 		threads = []
@@ -194,59 +164,48 @@ def get_proxies():
 				t = threading.Thread(target = check_proxy, args = ("Thread-{}".format(i), p))
 				threads.append(t)
 				t.start()
-
 		for t in threads:
 			t.join()
-
-	print(checked_proxies, len(checked_proxies))
 	with open("data/pyrequests_x3/checked_proxies.txt", "w", encoding="utf-8") as f:
 		f.write("\n".join(checked_proxies))
 
 
 def main():
 	global accounts, domain, headers, keywords, links, proxies, start, user_agents
-
-	proxies = []
-	with open("data/pyrequests_x3/checked_proxies.txt", "r") as f:
-		for proxy in f.readlines():
-			px = {
-				'http': 'http://{}'.format(proxy), 
-				'https': 'https://{}'.format(proxy)
-			}
-			proxies.append(px)
-
+	start = datetime.now()
+	threads_num = 5
+	domain = "http://www.imgur.com"
+	print("Requesting {} ({})".format(domain, start))
 	accounts = []
 	with open("data/pyrequests_x3/账号active.txt", "r") as f:
 		for account in f.readlines():
 			accounts.append(tuple(account.strip().split("----")))
-
 	keywords = []
 	with open("data/pyrequests_x3/keywords.txt", "r") as f:
 		keywords = [key.rstrip() for key in f.readlines()]
-
 	user_agents = []
 	with open("data/pyrequests_x3/user_agents.txt", "r") as f:
 		user_agents = list(json.loads(f.read()).values())
-
+	proxies = []
+	with open("data/pyrequests_x3/checked_proxies.txt", "r") as f:
+		for proxy in f.readlines():
+			proxies.append(proxy)
 	headers = {}
-
 	print("{} proxies(IP:PORT) loaded.".format(len(proxies)))
 	print("{} accounts loaded.".format(len(accounts)))
 	print("{} user-agents loaded.".format(len(user_agents)))
-
-	domain = "http://www.imgur.com"
-	start = datetime.now()
-	threads_num = 5
-
-	print("Requesting {} ({})".format(domain, start))
 	for p in proxies:
+		pxs = {
+			'http': "http://{}".format(p),
+			'https': "https://{}".format(p),
+		}
 		random.shuffle(accounts)
 		random.shuffle(user_agents)
 		threads = []
 		for i in range(threads_num):
 			t_acc = accounts[i]
 			t_ua = user_agents[i]
-			t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), p, t_acc, t_ua))
+			t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), pxs, t_acc, t_ua, p))
 			threads.append(t)
 
 			t.start()
@@ -383,14 +342,13 @@ def validate_account():
 
 def write_upload_log(ip, username, message):
 	with open("data/pyrequests_x3/uploadlog_{}.txt".format(datetime.now().strftime("%Y%m%d")), "a") as f:
-		f.write("{} {} {} {}\n".format(datetime.now(), ip, username, message))
+		f.write("{}	{}	{}	{}\n".format(datetime.now(), ip, username, message))
 
 if __name__ == "__main__":
 	while True:
-		# get_proxies()
-
-		# main()
-		# validate_account()
+		validate_account()
 		main_proxymesh()
+		get_proxies()
+		main()
 		print("Sleeping for 5mins...")
 		time.sleep(300)
