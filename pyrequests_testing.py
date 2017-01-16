@@ -160,10 +160,6 @@ def check_proxymesh_ip():
 			if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
 				proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
 				print("{} NEW {}".format(n, response.headers['X-ProxyMesh-IP']))
-			else:
-				print("{} SAME {}".format(n, response.headers['X-ProxyMesh-IP']))
-		else:
-			print("{} NONE {}".format(n, response.headers))
 	print("Done. {}".format(datetime.new() - start))
 
 if __name__ == "__main__":
