@@ -79,12 +79,15 @@ def get_proxies():
 	with open("data/pyrequests_api/checked_proxies.txt", "w", encoding="utf-8") as f:
 		f.write("\n".join(checked_proxies))
 
-def request_api(name, url, headers, proxys):
+def request_api(name, url, headers, proxys, proxymesh_ip):
 	IMAGE_DIR = "images/"
-	desc = "{}&nbsp;&nbsp;{}\n\n{}"
-	desc_website = "大奖老虎机 http://www.Q82019309.com"
+	desc = "{}&nbsp;&nbsp;{}\n\n{}\n\n{}"
+	desc_website = "大奖老虎机 http://www.djyl18.com"
+	random.shuffle(descriptions)
+	description = random.choice(descriptions)
 	images = [f for f in listdir(IMAGE_DIR) if isfile("{}{}".format(IMAGE_DIR, f))]
 	img_file = open("{}{}".format(IMAGE_DIR, random.choice(images)), "rb").read()
+	headers['X-ProxyMesh-IP'] = proxymesh_ip
 
 	for i in range(req_limit):
 		try:
@@ -93,7 +96,7 @@ def request_api(name, url, headers, proxys):
 			data = {
 				'image': b64encode(img_file),
 				'title': keyword,
-				'description': desc.format(keyword, desc_website, desc_link)
+				'description': desc.format(keyword, desc_website, description.replace("www.djyl18.com", " http://www.djyl18.com"), desc_link)
 			}
 
 			response = requests.post(url, headers=headers, data=data, proxies=proxys, timeout=5)
@@ -117,13 +120,16 @@ def request_api(name, url, headers, proxys):
 
 
 def main():
-	global domain, keywords, links, proxies, req_limit, start
+	global domain, keywords, links, proxies, req_limit, start, descriptions
 	
 	counter = 0
 	domain = "http://imgur.com/"
 	keywords = []
 	with open("data/keywords.txt", "r") as f:
 		keywords = [key.rstrip() for key in f.readlines()]
+	descriptions = []
+	with open("data/descriptions.txt", "r") as f:
+		descriptions = [key.rstrip() for key in f.readlines()]
 	links = []
 	proxies = []
 	with open("data/pyrequests_api/checked_proxies.txt", "r") as f:
@@ -166,13 +172,17 @@ def main():
 
 
 def proxymesh_api():
-	global domain, keywords, links, req_limit, start
+	global domain, keywords, links, req_limit, start, descriptions
 	
-	counter = 0
 	domain = "http://imgur.com/"
+	print("Start API request. ({})".format(datetime.now()))
+
 	keywords = []
 	with open("data/keywords.txt", "r") as f:
 		keywords = [key.rstrip() for key in f.readlines()]
+	descriptions = []
+	with open("data/descriptions.txt", "r") as f:
+		descriptions = [key.rstrip() for key in f.readlines()]
 	links = []
 	req_limit = 100
 	start = datetime.now()
@@ -187,13 +197,31 @@ def proxymesh_api():
 		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280',
 		'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
 	}
-	print("Start API request. ({})".format(datetime.now()))
+
+	proxymesh_ips = []
+	for n in range(1, 101):
+		response = requests.get('http://httpbin.org/ip', proxies=proxys)
+		if 'X-ProxyMesh-IP' in response.headers:
+			if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
+				proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
+
+	proxy_counter = 0
+
+	print("{} proxymesh IPs gathered.".format(proxymesh_ips))
+	
 	while True:
 		threads = []
 		for i in range(threads_num):
-			t = threading.Thread(target = request_api, args = ("Thread-{}".format(i), url, headers, proxys))
+			proxymesh_ip = proxymesh_ips[proxy_counter]
+			t = threading.Thread(target = request_api, args = ("Thread-{}".format(i), url, headers, proxys, proxymesh_ip))
 			threads.append(t)
 			t.start()
+			proxy_counter += 1
+
+			if proxy_counter >= len(proxymesh_ips):
+				proxy_counter = 0
+				print("Going back to first IP. Sleep for 10mins.")
+				time.sleep(600)
 
 		for t in threads:
 			t.join()

@@ -10,7 +10,7 @@ from signal import *
 lock = threading.Lock()
 
 
-def request_post(name, p, account, user_agent):
+def request_post(name, p, account, user_agent, proxymesh_ip):
 	s = requests.session()
 
 	images = [f for f in listdir(IMAGE_DIR) if isfile("{}{}".format(IMAGE_DIR, f))]
@@ -23,6 +23,8 @@ def request_post(name, p, account, user_agent):
 	}
 	headers['User-Agent'] 	= user_agent
 	headers['Referer'] 		= ""
+	headers['X-ProxyMesh-IP'] = proxymesh_ip
+
 	try:
 		
 		response 	= s.post(url, data=data, headers=headers, proxies=p, timeout=5)
@@ -67,7 +69,7 @@ def request_post(name, p, account, user_agent):
 		print("REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 		return None
 
-	for i in range(100):
+	for i in range(36):
 		# upload image start
 		url = "https://imgur.com/upload"
 		img_filename = random.choice(images)
@@ -81,31 +83,28 @@ def request_post(name, p, account, user_agent):
 		try:
 			response = s.post(url, files=files, headers=headers, proxies=p, timeout=15)
 			response_json = json.loads(response.text)
-
-			
-			links.append("http://imgur.com/{}".format(response_json['data']['hash']))
-			print("{}. http://imgur.com/{} ({} {} {})".format(len(links), response_json['data']['hash'], datetime.now() - start, name, account[0]))
-			with open("data/pyrequests_x3/saveContent.txt", "a", encoding="utf-8") as f:
-				f.write("http://imgur.com/{}\n".format(response_json['data']['hash']))
-			with open("data/saveContent.txt", "a", encoding="utf-8") as f:
-				f.write("http://imgur.com/{}\n".format(response_json['data']['hash']))
 		except KeyboardInterrupt as ex:
 			print("Ooopsy...")
 		except Exception as ex:
 			type, value, traceback = sys.exc_info()
 			print("REQUESTS ERROR: {}({}@{} line#{}) - {}".format(type.__name__, name, account[0], traceback.tb_lineno, value))
 			continue
+		else:
+			if 'deletehash' not in response_json['data']:
+				continue
 
 		# Update image title and description start
 		url = "http://imgur.com/ajax/titledesc/{}".format(response_json['data']['deletehash'])
 		headers['Referer'] = "http://imgur.com/{}".format(response_json['data']['album'])
 		keyword = keywords[random.randint(0, len(keywords) - 1)]
-		desc = "{}&nbsp;&nbsp;{}\n\n{}"
+		desc = "{}&nbsp;&nbsp;{}\n\n{}\n\n{}"
 		desc_link = "\n".join(["{}----{}".format(keywords[random.randint(0, len(keywords) - 1)], l) for l in links[-3:]])
-		desc_website = "大奖老虎机 http://www.Q82019309.com"
+		desc_website = "大奖老虎机 http://www.djyl18.com"
+		random.shuffle(descriptions)
+		description = random.choice(descriptions)
 		update_data = {
 			'title': keyword,
-			'description': desc.format(keyword, desc_website.replace('.', '&#46;'), desc_link.replace('.', '&#46;'))
+			'description': desc.format(keyword, desc_website.replace('.', '&#46;'), description.replace('.', '&#46;').replace("www.djyl18.com", " http://www.djyl18.com"), desc_link.replace('.', '&#46;'))
 		}
 		try:
 			update_html = s.post(url, headers=headers, data=update_data, proxies=p, timeout=5)
@@ -115,6 +114,13 @@ def request_post(name, p, account, user_agent):
 			type, value, traceback = sys.exc_info()
 			print("REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 			continue
+
+		links.append("http://imgur.com/{}".format(response_json['data']['hash']))
+		print("{}. http://imgur.com/{} ({} {} {})".format(len(links), response_json['data']['hash'], datetime.now() - start, name, account[0]))
+		with open("data/pyrequests_x3/saveContent.txt", "a", encoding="utf-8") as f:
+			f.write("http://imgur.com/{}\n".format(response_json['data']['hash']))
+		with open("data/saveContent.txt", "a", encoding="utf-8") as f:
+			f.write("http://imgur.com/{}\n".format(response_json['data']['hash']))
 
 
 def check_proxy(name, p):
@@ -243,7 +249,7 @@ def main():
 		lock.release()
 
 def main_proxymesh():
-	global accounts, domain, headers, IMAGE_DIR, keywords, links, proxies, start, user_agents
+	global accounts, domain, headers, IMAGE_DIR, keywords, links, proxies, start, user_agents, descriptions
 
 	accounts = []
 	with open("data/pyrequests_x3/账号active.txt", "r") as f:
@@ -254,6 +260,10 @@ def main_proxymesh():
 	with open("data/pyrequests_x3/keywords.txt", "r") as f:
 		keywords = [key.rstrip() for key in f.readlines()]
 
+	descriptions = []
+	with open("data/descriptions.txt", "r") as f:
+		descriptions = [key.rstrip() for key in f.readlines()]
+
 	user_agents = []
 	with open("data/pyrequests_x3/user_agents.txt", "r") as f:
 		user_agents = list(json.loads(f.read()).values())
@@ -261,28 +271,41 @@ def main_proxymesh():
 	headers = {}
 	links = []
 
-	print("{} accounts loaded.".format(len(accounts)))
-	print("{} user-agents loaded.".format(len(user_agents)))
-
 	domain = "http://www.imgur.com"
 	IMAGE_DIR = "images/"
 	start = datetime.now()
-	threads_num = 5
+	# threads_num = 5
+	threads_num = 2
+
+	print("Requesting {} ({})".format(domain, start))
 
 	proxys = {
 		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280', 
 		'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
 	}
-	print("Requesting {} ({})".format(domain, start))
+
+	proxymesh_ips = []
+	for n in range(1, 101):
+		response = requests.get('http://httpbin.org/ip', proxies=proxys)
+		if 'X-ProxyMesh-IP' in response.headers:
+			if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
+				proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
+
+	print("{} accounts loaded.".format(len(accounts)))
+	print("{} user-agents loaded.".format(len(user_agents)))
+	print("{} proxymesh IPs gathered.".format(proxymesh_ips))
+	
 	counter = 0
+	proxy_counter = 0
 	threads = []
 	while True:
+		proxymesh_ip = proxymesh_ips[proxy_counter]
 		for i in range(threads_num):
 			if counter < len(accounts):
 				t_acc = accounts[counter]
 				random.shuffle(user_agents)
 				t_ua = random.choice(user_agents)
-				t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), proxys, t_acc, t_ua))
+				t = threading.Thread(target = request_post, args = ("Thread-{}".format(i), proxys, t_acc, t_ua, proxymesh_ip))
 				threads.append(t)
 
 				t.start()
@@ -292,6 +315,11 @@ def main_proxymesh():
 			t.join()
 		lock.acquire()
 		lock.release()
+
+		proxy_counter += 1
+		if proxy_counter >= len(proxymesh_ips):
+			proxy_counter = 0
+			print("Going back to first proxymesh IP.")
 
 		if counter >= len(accounts):
 			break
@@ -349,7 +377,7 @@ if __name__ == "__main__":
 		# get_proxies()
 
 		# main()
-		validate_account()
+		# validate_account()
 		main_proxymesh()
 		print("Sleeping for 5mins...")
 		time.sleep(300)
