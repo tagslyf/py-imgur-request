@@ -160,8 +160,43 @@ def check_proxymesh_ip():
 			if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
 				proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
 				print("{} NEW {}".format(n, response.headers['X-ProxyMesh-IP']))
-	print("Done. {}".format(datetime.new() - start))
+	print("Done. {}".format(datetime.now() - start))
+
+
+def request_api():
+	url = "https://api.imgur.com/3/image"
+
+	headers = {}
+	headers['Authorization'] = "Client-ID e8e0297762a5593"
+
+	image_urls = ['http://i.imgur.com/4BoBLeK.jpg', 'https://i.imgbox.com/5eveR18P.jpg', 'http://i64.tinypic.com/n5mudx.jpg', 'http://thumbsnap.com/i/WOv9HaHv.jpg?0116']
+	keywords = []
+	with open("data/keywords.txt", "r") as f:
+		keywords = [key.rstrip() for key in f.readlines()]
+	keyword = keywords[random.randint(0, len(keywords) - 1)]
+	desc = "{}&nbsp;&nbsp;{}\n\n{}\n\n{}"
+	desc_website = "大奖老虎机 http://www.djyl18.com"
+	descriptions = []
+	with open("data/descriptions.txt", "r") as f:
+		descriptions = [key.rstrip() for key in f.readlines()]
+	description = random.choice(descriptions)
+	links = ['http://imgur.com/RRR8Xxo', 'http://imgur.com/pT9gQCk', 'http://imgur.com/pJ7at7m']
+	desc_link = "\n".join(["{}----{}".format(keywords[random.randint(0, len(keywords) - 1)], l) for l in links[-3:]])
+	data = {
+		'image': random.choice(image_urls),
+		'title': keyword,
+		'description': desc.format(keyword, desc_website, description.replace("www.djyl18.com", " http://www.djyl18.com"), desc_link)
+	}
+	proxys = {
+		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280',
+		'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
+	}
+	response = requests.post(url, headers=headers, data=data, proxies=proxys, timeout=15)
+	print(response)
+	print(response.json())
+	
 
 if __name__ == "__main__":
-	check_proxymesh_ip()
+	# check_proxymesh_ip()
 	# do_request()
+	request_api()

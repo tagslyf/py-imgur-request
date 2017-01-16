@@ -26,7 +26,6 @@ def request_post(name, p, account, user_agent, proxymesh_ip):
 	headers['X-ProxyMesh-IP'] = proxymesh_ip
 
 	try:
-		
 		response 	= s.post(url, data=data, headers=headers, proxies=p, timeout=5)
 		html 		= BeautifulSoup(response.content, "html.parser")
 		if html.find("li", {"class": "account"}):
@@ -35,15 +34,18 @@ def request_post(name, p, account, user_agent, proxymesh_ip):
 		elif html.find("div", {"class", "captcha"}):
 			# print("{} {} {} LOGIN CAPTCHA".format(name, p, account[0]))
 			print("{} {} LOGIN CAPTCHA".format(name, account[0]))
+			write_upload_log(proxymesh_ip, account[0], "Captcha encountered in login.")
 			return None
 		else:
-			print("{} {} LOGIN ERROR {} {}".format(name, account[0], response))
+			print("{} {} LOGIN ERROR {}".format(name, account[0], response))
+			write_upload_log(proxymesh_ip, account[0], "Error in login {}.".format(response))
 			return None
 	except KeyboardInterrupt as ex:
 		print("Ooopsy...")
 	except Exception as ex:
 		type, value, traceback = sys.exc_info()
 		print("REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
+		write_upload_log(proxymesh_ip, account[0], "REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 		return None
 
 	# Check captcha upload image start
@@ -61,12 +63,14 @@ def request_post(name, p, account, user_agent, proxymesh_ip):
 		captcha_response_json = json.loads(response.text)
 		if 'new_album_id' not in captcha_response_json['data']:
 			print("{} {} UPLOAD CHECK CAPTCHA FAILED {}".format(name, account[0], captcha_response_json['data']))
+			write_upload_log(proxymesh_ip, account[0], "Captcha encountered before uploading. Data: {}".format(captcha_response_json['data']))
 			return None
 	except KeyboardInterrupt as ex:
 		print("Ooopsy...")
 	except Exception as ex:
 		type, value, traceback = sys.exc_info()
 		print("REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
+		write_upload_log(proxymesh_ip, account[0], "REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 		return None
 
 	for i in range(36):
@@ -88,10 +92,12 @@ def request_post(name, p, account, user_agent, proxymesh_ip):
 		except Exception as ex:
 			type, value, traceback = sys.exc_info()
 			print("REQUESTS ERROR: {}({}@{} line#{}) - {}".format(type.__name__, name, account[0], traceback.tb_lineno, value))
+			write_upload_log(proxymesh_ip, account[0], "REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 			continue
 		else:
 			if 'deletehash' not in response_json['data']:
-				continue
+				write_upload_log(proxymesh_ip, account[0], "Got an invalid response in upload. Data: {}".format(response_json['data']))
+				break
 
 		# Update image title and description start
 		url = "http://imgur.com/ajax/titledesc/{}".format(response_json['data']['deletehash'])
@@ -113,10 +119,12 @@ def request_post(name, p, account, user_agent, proxymesh_ip):
 		except Exception as ex:
 			type, value, traceback = sys.exc_info()
 			print("REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
+			write_upload_log(proxymesh_ip, account[0], "REQUESTS ERROR: {}({} line#{}) - {}".format(type.__name__, name, traceback.tb_lineno, value))
 			continue
 
 		links.append("http://imgur.com/{}".format(response_json['data']['hash']))
 		print("{}. http://imgur.com/{} ({} {} {})".format(len(links), response_json['data']['hash'], datetime.now() - start, name, account[0]))
+		write_upload_log(proxymesh_ip, account[0], "http://imgur.com/{} ({})".format(response_json['data']['hash'], name))
 		with open("data/pyrequests_x3/saveContent.txt", "a", encoding="utf-8") as f:
 			f.write("http://imgur.com/{}\n".format(response_json['data']['hash']))
 		with open("data/saveContent.txt", "a", encoding="utf-8") as f:
@@ -294,6 +302,7 @@ def main_proxymesh():
 	print("{} accounts loaded.".format(len(accounts)))
 	print("{} user-agents loaded.".format(len(user_agents)))
 	print("{} proxymesh IPs gathered.".format(proxymesh_ips))
+	write_upload_log(proxymesh_ips, 'None', 'Proxymesh current IP address given.')
 	
 	counter = 0
 	proxy_counter = 0
@@ -371,6 +380,10 @@ def validate_account():
 	with open("data/pyrequests_x3/账号.txt", "w", encoding="utf-8") as f:
 		for a in accounts:
 			f.write("{}----{}\n".format(a[0], a[1]))
+
+def write_upload_log(ip, username, message):
+	with open("data/pyrequests_x3/uploadlog_{}.txt".format(datetime.now().strftime("%Y%m%d")), "a") as f:
+		f.write("{} {} {} {}\n".format(datetime.now(), ip, username, message))
 
 if __name__ == "__main__":
 	while True:
