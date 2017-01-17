@@ -177,7 +177,7 @@ def proxymesh_api():
 	pid = str(uuid.uuid4()).upper().replace("-", "")[:16]
 	domain = "http://imgur.com/"
 	print("Start API request using proxmesh proxy. ({})".format(datetime.now()))
-	write_upload_log("None", pid, "Start API request using proxmesh proxy.")
+	write_upload_log("Start", pid, "Start API request using proxmesh proxy.")
 	titles = []
 	with open("data/titles.txt", "r") as f:
 		titles = [key.rstrip() for key in f.readlines()]
@@ -225,7 +225,7 @@ def proxymesh_api():
 		if proxy_counter >= len(proxymesh_ips):
 			print("Going back to first IP. Exit process using proxymesh IPs.")
 			break
-	write_upload_log("None", pid, "Proccessing for proxymesh proxies' is stop. Links total count is {}".format(len(links)))
+	write_upload_log("Stop", pid, "Proccessing for proxymesh proxies' is stop. Links total count is {}".format(len(links)))
 
 
 def checkedproxy_api():
@@ -279,7 +279,7 @@ def checkedproxy_api():
 		if proxy_counter >= len(checked_proxies):
 			print("Going back to first IP. Exit process using scraped proxys' IPs.")
 			break
-	write_upload_log("None", pid, "Proccessing for scraped proxies' is stop. Links total count is {}".format(len(links)))
+	write_upload_log("Stop", pid, "Proccessing for scraped proxies' is stop. Links total count is {}".format(len(links)))
 
 def checkproxy(name, gather_proxy, counter):	
 	url = 'http://httpbin.org/ip'
@@ -403,7 +403,7 @@ def gatherproxy_api():
 		if proxyloop:
 			print("Exit process using gather proxys' IPs.")
 			break
-	write_upload_log("None", pid, "Proccessing for gather proxies' is stop. Links total count is {}".format(len(links)))
+	write_upload_log("Stop", pid, "Proccessing for gather proxies' is stop. Links total count is {}".format(len(links)))
 
 
 def write_upload_log(ip, username, message):

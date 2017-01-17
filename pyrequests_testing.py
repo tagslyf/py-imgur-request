@@ -160,13 +160,24 @@ def check_proxymesh_ip():
 	proxymesh_ips = []
 	start = datetime.now()
 	print("Getting proxymesh IPs. {}".format(start))
-	for n in range(1, 501):
-		response = requests.get(url, proxies=proxies)
-		if 'X-ProxyMesh-IP' in response.headers:
-			if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
-				proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
-				print("{} NEW {}".format(n, response.headers['X-ProxyMesh-IP']))
-	print("Done. {}\n{}".format(datetime.now() - start, proxymesh_ips))
+	# for n in range(1, 501):
+	counter = 1
+	stoploop = False
+	start_time = time.time()
+	while True:
+		try:
+			response = requests.get(url, proxies=proxies)
+		except Exception as ex:
+			pass
+		else:
+			if 'X-ProxyMesh-IP' in response.headers:
+				if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
+					proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
+					print("{} NEW {}".format(counter, response.headers['X-ProxyMesh-IP']))
+					counter += 1
+		if int(time.time() - start_time) >= 900:
+			break
+	print("Done. {}\n{}\n".format(datetime.now() - start, proxymesh_ips, len(proxymesh_ips)))
 
 
 def request_api():
@@ -214,7 +225,16 @@ def request_api():
 	print(response.json())
 	
 
+def test_def():
+	url = "https://proxymesh.com/api/proxies/"
+	username = "winner88"
+	password = "qweasd321"
+	response = requests.get(url, auth=requests.auth.HTTPBasicAuth(username, password))
+	print(response)
+	print(response.json(), type(response.json()))
+
 if __name__ == "__main__":
-	check_proxymesh_ip()
+	# check_proxymesh_ip()
 	# do_request()
 	# request_api()
+	test_def()
