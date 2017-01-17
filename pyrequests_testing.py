@@ -1,4 +1,4 @@
-import json, os, random, requests, sys
+import json, os, random, requests, sys, time
 from bs4 import BeautifulSoup
 from datetime import datetime
 from urllib.parse import urlencode
@@ -148,9 +148,14 @@ def request_post(name, account, proxies):
 
 def check_proxymesh_ip():
 	url = "http://httpbin.org/ip"
+	# proxies = {
+	# 	'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280', 
+	# 	'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
+	# }
+	
 	proxies = {
-		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280', 
-		'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
+		'http': 'http://winner88:qweasd321@open.proxymesh.com:31280', 
+		'https': 'http://winner88:qweasd321@open.proxymesh.com:31280'
 	}
 	proxymesh_ips = []
 	start = datetime.now()
@@ -161,7 +166,7 @@ def check_proxymesh_ip():
 			if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
 				proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
 				print("{} NEW {}".format(n, response.headers['X-ProxyMesh-IP']))
-	print("Done. {}".format(datetime.now() - start))
+	print("Done. {}\n{}".format(datetime.now() - start, proxymesh_ips))
 
 
 def request_api():
@@ -210,6 +215,6 @@ def request_api():
 	
 
 if __name__ == "__main__":
-	# check_proxymesh_ip()
+	check_proxymesh_ip()
 	# do_request()
-	request_api()
+	# request_api()

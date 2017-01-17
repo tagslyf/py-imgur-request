@@ -1,4 +1,4 @@
-import json, os, random, requests, sys, threading, time
+import json, os, random, requests, sys, threading, time, uuid
 from base64 import b64encode
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
@@ -9,7 +9,7 @@ from os.path import isfile
 lock = threading.Lock()
 
 
-def request_api(name, url, headers, proxys, proxymesh_ip):
+def request_api(name, url, headers, proxys, proxymesh_ip, limit_errors=False):
 	IMAGE_DIR = "images/"
 
 	desc = "{}\n\n\n{}\n\n{}"
@@ -24,6 +24,7 @@ def request_api(name, url, headers, proxys, proxymesh_ip):
 		content += "	{}\n".format(", ".join(contents[:random.randint(5,10)]))
 	headers['X-ProxyMesh-IP'] = proxymesh_ip
 
+	errors = {}
 	for i in range(req_limit):
 		try:
 			title = titles[random.randint(0, len(titles) - 1)]
@@ -42,15 +43,29 @@ def request_api(name, url, headers, proxys, proxymesh_ip):
 					f.write("{}\n".format(link))
 				with open("data/saveContent.txt", "a", encoding="utf-8") as f:
 					f.write("{}\n".format(link))
-				print("{}. {} ({} {} {})".format(len(links), link, datetime.now() - start, name, proxymesh_ip)) # temporary for testing of proxymesh
+				print("{}. {}".format(len(links), link)) # temporary for testing of proxymesh
 				write_upload_log(proxymesh_ip, 'API:{}'.format(name), link)
 			elif response.status_code == 400 and "You are uploading too fast" in response.json()['data']['error']:
-				write_upload_log(proxymesh_ip, 'API', response.json()['data']['error'])
+				write_upload_log(proxymesh_ip, 'API', "{} {}".format(response, response.json()['data']['error']))
+				break
+			elif "Imgur is temporarily over capacity" in response.json()['data']['error']:
+				write_upload_log(proxymesh_ip, 'API', "{} {}".format(response, response.json()['data']['error']))
 				break
 			else:
-				write_upload_log(proxymesh_ip, 'API', "{}".format(response.json()['data']['error']) if response.json() else response.text)
+				write_upload_log(proxymesh_ip, 'API', "Error response: {} {}".format(response, response.json()['data']['error']) if response.json() else response.text)
 		except Exception as ex:
 			type, value, traceback = sys.exc_info()
+			if limit_errors:
+				if type.__name__ not in errors:
+					for element, index in enumerate(errors):
+						errors[index] = 0
+					errors[type.__name__] = 1
+				else:
+					if errors[type.__name__] >= 25:
+						write_upload_log(proxymesh_ip, 'API', "Error encountered 25 times: {}@{} line#{} {}".format(type.__name__, name, traceback.tb_lineno, value))
+						break
+					else:
+						errors[type.__name__] += 1
 			write_upload_log(proxymesh_ip, 'API', "REQUESTS ERROR: {}({}@{} line#{}) - {}".format(type.__name__, name, i + 1, traceback.tb_lineno, value))
 			if type.__name__ in ['SSLError', 'ProxyError']:
 				break
@@ -159,8 +174,10 @@ def main():
 
 def proxymesh_api():
 	global contents, domain, image_urls, titles, links, req_limit, start, promos
+	pid = str(uuid.uuid4()).upper().replace("-", "")[:16]
 	domain = "http://imgur.com/"
 	print("Start API request using proxmesh proxy. ({})".format(datetime.now()))
+	write_upload_log("None", pid, "Start API request using proxmesh proxy.")
 	titles = []
 	with open("data/titles.txt", "r") as f:
 		titles = [key.rstrip() for key in f.readlines()]
@@ -196,7 +213,7 @@ def proxymesh_api():
 		threads = []
 		for i in range(threads_num):
 			proxymesh_ip = proxymesh_ips[proxy_counter]
-			t = threading.Thread(target = request_api, args = ("Thread-{}".format(i), url, headers, proxys, proxymesh_ip))
+			t = threading.Thread(target = request_api, args = ("ProxyMeshThread-{}".format(i), url, headers, proxys, proxymesh_ip, False))
 			threads.append(t)
 			t.start()
 			proxy_counter += 1
@@ -208,12 +225,15 @@ def proxymesh_api():
 		if proxy_counter >= len(proxymesh_ips):
 			print("Going back to first IP. Exit process using proxymesh IPs.")
 			break
+	write_upload_log("None", pid, "Proccessing for proxymesh proxies' is stop. Links total count is {}".format(len(links)))
 
 
 def checkedproxy_api():
 	global domain, contents, image_urls, links, promos, req_limit, start, titles
+	pid = str(uuid.uuid4()).upper().replace("-", "")[:16]
 	domain = "http://imgur.com/"
 	print("Start API request using scraped proxies. ({})".format(datetime.now()))
+	write_upload_log("Start", pid, "Start API request using scraped proxies.")
 	titles = []
 	with open("data/titles.txt", "r") as f:
 		titles = [key.rstrip() for key in f.readlines()]
@@ -247,7 +267,7 @@ def checkedproxy_api():
 				'http': 'http://{}'.format(proxy_ip),
 				'https': 'https://{}'.format(proxy_ip)
 			}
-			t = threading.Thread(target = request_api, args = ("Thread-{}".format(i), url, headers, proxys, proxy_ip))
+			t = threading.Thread(target = request_api, args = ("ScrapedProxyThread-{}".format(i), url, headers, proxys, proxy_ip, False))
 			threads.append(t)
 			t.start()
 			proxy_counter += 1
@@ -259,6 +279,7 @@ def checkedproxy_api():
 		if proxy_counter >= len(checked_proxies):
 			print("Going back to first IP. Exit process using scraped proxys' IPs.")
 			break
+	write_upload_log("None", pid, "Proccessing for scraped proxies' is stop. Links total count is {}".format(len(links)))
 
 def checkproxy(name, gather_proxy, counter):	
 	url = 'http://httpbin.org/ip'
@@ -282,9 +303,14 @@ def check_gatherproxy():
 	DATA_DIR = "data/pyrequests_api/"
 	gather_proxies = []
 	ok2get_proxy = []
-	with open("{}{}".format(DATA_DIR, "gather_proxy.txt"), "r") as f:
-		for proxy in f:
-			gather_proxies.append(proxy.rstrip())
+	if os.path.exists("{}{}".format(DATA_DIR, "gather_proxy.txt")):
+		with open("{}{}".format(DATA_DIR, "gather_proxy.txt"), "r") as f:
+			for proxy in f:
+				gather_proxies.append(proxy.rstrip())
+	else:
+		print("No new proxies from gather proxy. Will use existing checked proxies.")
+		write_upload_log("None", "None", "No new proxies from gather proxy. Will use existing checked proxies.")
+		return None
 	start = datetime.now()
 	threads_num = 30
 	counter = 0
@@ -303,15 +329,20 @@ def check_gatherproxy():
 		for t in threads:
 			t.join()
 	print("Loaded proxy... Total: {} OK: {} BAD: {} (Process timed {})".format(len(gather_proxies), len(ok2get_proxy), len(gather_proxies) - len(ok2get_proxy), datetime.now() - start))
-	with open("{}{}".format(DATA_DIR, "gatherok_proxies.txt"), "w") as f:
-		for proxy in ok2get_proxy:
-			f.write("{}\n".format(proxy))
+	if len(ok2get_proxy) > 0:
+		with open("{}{}".format(DATA_DIR, "gatherok_proxies.txt"), "w") as f:
+			for proxy in ok2get_proxy:
+				f.write("{}\n".format(proxy))
+		if os.path.exists("{}{}".format(DATA_DIR, "gather_proxy.txt")):
+			os.remove("{}{}".format(DATA_DIR, "gather_proxy.txt"))
 
 
 def gatherproxy_api():
 	global contents, domain, image_urls, links, promos, req_limit, start, titles
+	pid = str(uuid.uuid4()).upper().replace("-", "")[:16]
 	domain = "http://imgur.com/"
 	print("Start API request using gather proxies. ({})".format(datetime.now()))
+	write_upload_log("Start", pid, "Start API request using gather proxies.")
 	titles = []
 	with open("data/titles.txt", "r") as f:
 		titles = [key.rstrip() for key in f.readlines()]
@@ -328,35 +359,51 @@ def gatherproxy_api():
 		for p in f.readlines():
 			checked_proxies.append(p.rstrip())
 	proxy_counter = 0
+	proxyloop = False
 	links = []
 	req_limit = 100
 	start = datetime.now()
+	start_time = time.time()
 	threads_num = 2
 	url = "https://api.imgur.com/3/image"
 	headers = {}
 	headers['Authorization'] = "Client-ID e8e0297762a5593"
 	print("{} scraped proxies loaded".format(len(checked_proxies)))
-	write_upload_log(checked_proxies, 'API', 'Scraped proxies current IP address.')
+	write_upload_log(checked_proxies, 'API', 'Gathered proxies current IP address.')
 	while True:
 		threads = []
 		for i in range(threads_num):
 			proxy_ip = checked_proxies[proxy_counter]
+			if os.path.isfile("data/pyrequests_api/current_ip_gatherproxy.txt"):
+				with open("data/pyrequests_api/current_ip_gatherproxy.txt", "r", encoding="utf-8") as f:
+					proxy_ip = f.read().rstrip()
+					if proxy_ip in checked_proxies:
+						proxy_counter = checked_proxies.index(proxy_ip)
+						os.remote("data/pyrequests_api/current_ip_gatherproxy.txt")
 			proxys = {
 				'http': 'http://{}'.format(proxy_ip),
 				'https': 'https://{}'.format(proxy_ip)
 			}
-			t = threading.Thread(target = request_api, args = ("Thread-{}".format(i), url, headers, proxys, proxy_ip))
+			t = threading.Thread(target = request_api, args = ("GatherProxyThread-{}".format(i), url, headers, proxys, proxy_ip, True))
 			threads.append(t)
 			t.start()
 			proxy_counter += 1
+			if int(time.time() - start_time) >= 1800:
+				print("Set time limit is reached (30 minutes). Exit process using gather proxys' IPs.")
+				with open("data/pyrequests_api/current_ip_gatherproxy.txt", "w", encoding="utf-8") as f:
+					f.write("{}\n".format(checked_proxies[proxy_counter]))
+				proxyloop = True
+				break
 			if proxy_counter >= len(checked_proxies):
 				print("Going back to first IP. Break threads")
+				proxyloop = True
 				break
 		for t in threads:
 			t.join()
-		if proxy_counter >= len(checked_proxies):
-			print("Going back to first IP. Exit process using scraped proxys' IPs.")
+		if proxyloop:
+			print("Exit process using gather proxys' IPs.")
 			break
+	write_upload_log("None", pid, "Proccessing for gather proxies' is stop. Links total count is {}".format(len(links)))
 
 
 def write_upload_log(ip, username, message):
