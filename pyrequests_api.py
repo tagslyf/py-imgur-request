@@ -191,41 +191,58 @@ def proxymesh_api():
 	links = []
 	req_limit = 100
 	start = datetime.now()
-	threads_num = 2
-	url = "https://api.imgur.com/3/image"
-	headers = {}
-	headers['Authorization'] = "Client-ID e8e0297762a5593"
-	proxys = {
-		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280',
-		'https': 'http://winner88:qweasd321@fr.proxymesh.com:31280'
-	}
-	proxymesh_ips = []
-	for n in range(1, 101):
-		response = requests.get('http://httpbin.org/ip', proxies=proxys)
-		if 'X-ProxyMesh-IP' in response.headers:
-			if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
-				proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
+	threads_num = 2	
+	# Call proxymesh api to get the proxy list
+	url = "https://proxymesh.com/api/proxies/"
+	username = "winner88"
+	password = "qweasd321"
+	response = requests.get(url, auth=requests.auth.HTTPBasicAuth(username, password))
 
-	proxy_counter = 0
-	print("{} proxymesh IPs gathered.".format(proxymesh_ips))
-	write_upload_log(proxymesh_ips, 'API', 'Proxymesh current IP address given.')
-	while True:
-		threads = []
-		for i in range(threads_num):
-			proxymesh_ip = proxymesh_ips[proxy_counter]
-			t = threading.Thread(target = request_api, args = ("ProxyMeshThread-{}".format(i), url, headers, proxys, proxymesh_ip, False))
-			threads.append(t)
-			t.start()
-			proxy_counter += 1
-			if proxy_counter >= len(proxymesh_ips):
-				print("Going back to first IP. Break threads")
-				break
-		for t in threads:
-			t.join()
-		if proxy_counter >= len(proxymesh_ips):
-			print("Going back to first IP. Exit process using proxymesh IPs.")
-			break
-	write_upload_log("Stop", pid, "Proccessing for proxymesh proxies' is stop. Links total count is {}".format(len(links)))
+	if response.status_code == 200:
+		url = "https://api.imgur.com/3/image"
+		headers = {}
+		headers['Authorization'] = "Client-ID e8e0297762a5593"
+		proxymesh_proxies = response.json()['proxies']
+		for proxymesh_proxy in proxymesh_proxies:
+			proxys = {
+				'http': 'http://winner88:qweasd321@{}'.format(proxymesh_proxy),
+				'https': 'http://winner88:qweasd321@{}'.format(proxymesh_proxy)
+			}
+			proxymesh_ips = []
+			for n in range(1, 176):
+				try:
+					response = requests.get('http://httpbin.org/ip', proxies=proxys, timeout=5)
+				except Exception as ex:
+					pass
+				else:
+					if 'X-ProxyMesh-IP' in response.headers:
+						if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
+							proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
+							sys.stdout.write("\rCount of IP(s) for {}: {}".format(proxymesh_proxy, len(proxymesh_ips)))
+							sys.stdout.flush()
+			proxy_counter = 0
+			print("\n{} {} proxymesh IPs gathered.".format(proxymesh_proxy, len(proxymesh_ips)))
+			write_upload_log(proxymesh_ips, 'API', '{} Proxymesh current IP address given.'.format(len(proxymesh_ips)))
+			while True:
+				threads = []
+				for i in range(threads_num):
+					proxymesh_ip = proxymesh_ips[proxy_counter]
+					t = threading.Thread(target = request_api, args = ("ProxyMeshThread-{}".format(i), url, headers, proxys, proxymesh_ip, False))
+					threads.append(t)
+					t.start()
+					proxy_counter += 1
+					if proxy_counter >= len(proxymesh_ips):
+						print("Going back to first IP. Break threads")
+						break
+				for t in threads:
+					t.join()
+				if proxy_counter >= len(proxymesh_ips):
+					print("Going back to first IP. Exit process using proxymesh IPs.")
+					break
+		write_upload_log("Stop", pid, "Proccessing for proxymesh proxies' is stop. Links total count is {}".format(len(links)))
+	else:
+		write_upload_log("None", "None", "Error on getting proxies in {}".format(url))
+		write_upload_log("Stop", pid, "Proccessing for proxymesh proxies' is stop. Links total count is {}".format(len(links)))
 
 
 def checkedproxy_api():
@@ -338,7 +355,7 @@ def check_gatherproxy():
 
 
 def gatherproxy_api():
-	global contents, domain, image_urls, links, promos, req_limit, start, titles
+	global contents, domain, image_urls, promos, req_limit, start, titles
 	pid = str(uuid.uuid4()).upper().replace("-", "")[:16]
 	domain = "http://imgur.com/"
 	print("Start API request using gather proxies. ({})".format(datetime.now()))
@@ -360,7 +377,6 @@ def gatherproxy_api():
 			checked_proxies.append(p.rstrip())
 	proxy_counter = 0
 	proxyloop = False
-	links = []
 	req_limit = 100
 	start = datetime.now()
 	start_time = time.time()
@@ -379,7 +395,7 @@ def gatherproxy_api():
 					proxy_ip = f.read().rstrip()
 					if proxy_ip in checked_proxies:
 						proxy_counter = checked_proxies.index(proxy_ip)
-						os.remote("data/pyrequests_api/current_ip_gatherproxy.txt")
+						os.remove("data/pyrequests_api/current_ip_gatherproxy.txt")
 			proxys = {
 				'http': 'http://{}'.format(proxy_ip),
 				'https': 'https://{}'.format(proxy_ip)
@@ -412,13 +428,15 @@ def write_upload_log(ip, username, message):
 
 
 if __name__ == "__main__":
+	global links
+	links = []
 	while True:
 		# get_proxies()
 
 		# main()
 		proxymesh_api() # request imgur.com API using proxymesh
 		checkedproxy_api()
-		gatherproxy_api()
+		# gatherproxy_api()
 
 		print("Sleeping for 5mins...")
 		time.sleep(300)

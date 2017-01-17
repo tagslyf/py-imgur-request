@@ -225,16 +225,33 @@ def request_api():
 	print(response.json())
 	
 
-def test_def():
-	url = "https://proxymesh.com/api/proxies/"
-	username = "winner88"
-	password = "qweasd321"
-	response = requests.get(url, auth=requests.auth.HTTPBasicAuth(username, password))
-	print(response)
-	print(response.json(), type(response.json()))
+def test_ips():
+	ips = []
+	with open('data/test_ips.txt', "r") as f:
+		ips =[p.rstrip() for p in f.readlines()]
+
+	start = datetime.now()
+	print("Start {}".format(start))
+	checked_proxies = []
+	for ip in ips:
+		proxies = {
+			'http': 'http:{}'.format(ip), 
+			'https': 'https:{}'.format(ip)
+		}
+		sys.stdout.write("\rChecking working proxies: {}/{}".format(ips.index(ip) + 1, len(ips)))
+		sys.stdout.flush()
+		url = "http://httpbin.org/ip"
+		try:
+			response = requests.get(url, proxies=proxies, timeout=5)
+		except Exception as ex:
+			pass
+		else:
+			checked_proxies.append(ip)
+	print("Total number of working IP: {}".format(len(checked_proxies)))
+	print("Stop {} ({})".format(datetime.now(),datetime.now() - start))
 
 if __name__ == "__main__":
 	# check_proxymesh_ip()
 	# do_request()
 	# request_api()
-	test_def()
+	test_ips()
