@@ -82,9 +82,10 @@ def checkproxy(name, gather_proxy, counter):
 	except Exception as e:
 		pass
 	else:
-		ok2get_proxy.append(gather_proxy)
-		sys.stdout.write("\rChecking working proxies: {}/{}".format(gather_proxies.index(gather_proxy), len(gather_proxies)))
-		sys.stdout.flush()
+		if gather_proxy not in ok2get_proxy:
+			ok2get_proxy.append(gather_proxy)
+	sys.stdout.write("\rChecking working proxies: {}/{}".format(gather_proxies.index(gather_proxy), len(gather_proxies)))
+	sys.stdout.flush()
 	lock.acquire()
 	lock.release()
 
@@ -166,13 +167,11 @@ def gatherproxy_api():
 			t.start()
 			proxy_counter += 1
 			if proxy_counter >= len(checked_proxies):
-				print("Going back to first IP. Break threads")
 				proxyloop = True
 				break
 		for t in threads:
 			t.join()
 		if proxyloop:
-			print("Exit process using gather proxys' IPs.")
 			break
 	write_upload_log("Stop", pid, "Proccessing for gather proxies' is stop. Links total count is {}".format(len(links)))
 

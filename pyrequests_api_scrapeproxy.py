@@ -89,8 +89,8 @@ def check_proxy(name, p):
 	else:
 		if response.status_code == 200 and 'origin' in json.loads(response.text):
 			checked_proxies.append(p)
-			sys.stdout.write("\rChecking working proxies: {}/{}".format(proxys.index(p), len(proxys)))
-			sys.stdout.flush()
+	sys.stdout.write("\rChecking working proxies: {}/{}".format(proxys.index(p), len(proxys)))
+	sys.stdout.flush()
 	s.cookies.clear()
 	s.close()
 
@@ -110,18 +110,27 @@ def get_proxies():
 			if tds[4].string == 'elite proxy' and tds[6].string == 'yes':
 				proxys.append("{}:{}".format(tds[0].string, tds[1].string))
 	threads_num = 10
+	counter = 0
+	stoploop = False
 	checked_proxies = []
-	while proxys:
+	while True:
 		threads = []
 		for i in range(threads_num):
 			if proxys:
-				p = proxys.pop(0)
+				p = proxys[counter]
 				
 				t = threading.Thread(target = check_proxy, args = ("Thread-{}".format(i), p))
 				threads.append(t)
 				t.start()
+				counter += 1
+				if counter >= len(proxys):
+					counter = 0
+					stoploop = True
+					break
 		for t in threads:
 			t.join()
+		if stoploop:
+			break
 	with open("data/pyrequests_api/checked_proxies.txt", "w", encoding="utf-8") as f:
 		f.write("\n".join(checked_proxies))
 
@@ -154,7 +163,7 @@ def checkedproxy_api():
 	url = "https://api.imgur.com/3/image"
 	headers = {}
 	headers['Authorization'] = "Client-ID e8e0297762a5593"
-	print("\n{} scraped proxies loaded".format(len(checked_proxies)))
+	print("	{} working IPs".format(len(checked_proxies)))
 	write_upload_log(checked_proxies, 'API', 'Scraped proxies current IP address.')
 	while True:
 		threads = []
@@ -169,12 +178,10 @@ def checkedproxy_api():
 			t.start()
 			proxy_counter += 1
 			if proxy_counter >= len(checked_proxies):
-				print("Going back to first IP. Break threads")
 				break
 		for t in threads:
 			t.join()
 		if proxy_counter >= len(checked_proxies):
-			print("Going back to first IP. Exit process using scraped proxys' IPs.")
 			break
 	write_upload_log("Stop", pid, "Proccessing for scraped proxies' is stop. Links total count is {}".format(len(links)))
 

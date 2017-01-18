@@ -116,8 +116,8 @@ def proxymesh_api():
 					if 'X-ProxyMesh-IP' in response.headers:
 						if response.headers['X-ProxyMesh-IP'] not in proxymesh_ips:
 							proxymesh_ips.append(response.headers['X-ProxyMesh-IP'])
-							sys.stdout.write("\rCount of IP(s) for {}: {}".format(proxymesh_proxy, len(proxymesh_ips)))
-							sys.stdout.flush()
+				sys.stdout.write("\rCount of IP(s) for {}: {}".format(proxymesh_proxy, len(proxymesh_ips)))
+				sys.stdout.flush()
 			proxy_counter = 0
 			print("\n{} {} proxymesh IPs gathered.".format(proxymesh_proxy, len(proxymesh_ips)))
 			write_upload_log(proxymesh_ips, 'API', '{} Proxymesh current IP address given.'.format(len(proxymesh_ips)))
@@ -130,12 +130,10 @@ def proxymesh_api():
 					t.start()
 					proxy_counter += 1
 					if proxy_counter >= len(proxymesh_ips):
-						print("Going back to first IP. Break threads")
 						break
 				for t in threads:
 					t.join()
 				if proxy_counter >= len(proxymesh_ips):
-					print("Going back to first IP. Exit process using proxymesh IPs.")
 					break
 		write_upload_log("Stop", pid, "Proccessing for proxymesh proxies' is stop. Links total count is {}".format(len(links)))
 	else:
@@ -150,9 +148,8 @@ def write_upload_log(ip, username, message):
 
 if __name__ == "__main__":
 	global links
-	linbks = []
+	links = []
 	while True:
 		proxymesh_api()
-
 		print("Sleeping for 5mins...")
 		time.sleep(300)
