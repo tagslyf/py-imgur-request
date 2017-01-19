@@ -86,7 +86,9 @@ def proxymesh_api():
 	contents = []
 	with open("data/contents.txt", "r") as f:
 		contents = [key.rstrip() for key in f.readlines()]
-	image_urls = ['http://i.imgur.com/4BoBLeK.jpg', 'https://i.imgbox.com/5eveR18P.jpg', 'http://i64.tinypic.com/n5mudx.jpg', 'http://thumbsnap.com/i/WOv9HaHv.jpg?0116']
+	# Upload images here http://freeimagehosting.net/, 
+	# image_urls = ['http://i.imgur.com/4BoBLeK.jpg', 'https://i.imgbox.com/5eveR18P.jpg', 'http://i64.tinypic.com/n5mudx.jpg', 'http://thumbsnap.com/i/WOv9HaHv.jpg?0116']
+	image_urls = ["http://i.imgur.com/nRTNo6y.png", "http://oi64.tinypic.com/jtvuxf.jpg", "http://thumbsnap.com/i/e5bvtDl8.png?0118"]
 	req_limit = 100
 	start = datetime.now()
 	threads_num = 2	

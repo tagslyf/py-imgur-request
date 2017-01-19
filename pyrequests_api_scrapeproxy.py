@@ -104,11 +104,15 @@ def get_proxies():
 	response = requests.get(url)
 	html = BeautifulSoup(response.content, "html.parser")
 	proxys = []
-	for tr in html.find("table", {'id': "proxylisttable"}).find('tbody').findAll ('tr'):
-		if tr:
-			tds = tr.findAll('td')
-			if tds[4].string == 'elite proxy' and tds[6].string == 'yes':
-				proxys.append("{}:{}".format(tds[0].string, tds[1].string))
+	try:
+		for tr in html.find("table", {'id': "proxylisttable"}).find('tbody').findAll('tr'):
+			if tr:
+				tds = tr.findAll('td')
+				if tds[4].string == 'elite proxy' and tds[6].string == 'yes':
+					proxys.append("{}:{}".format(tds[0].string, tds[1].string))
+	except Exception as ex:
+		type, value, traceback = sys.exc_info()
+		write_upload_log(proxymesh_ip, 'API', "Scraping of proxy error: {}({}@{} line#{}) - {}".format(type.__name__, name, i + 1, traceback.tb_lineno, value))
 	threads_num = 10
 	counter = 0
 	stoploop = False
