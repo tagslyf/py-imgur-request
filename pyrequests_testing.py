@@ -198,22 +198,27 @@ def request_api():
 	headers['Content-Type'] = "application/x-www-form-urlencoded; charset=UTF-8"
 
 	image_urls = ['http://i.imgur.com/4BoBLeK.jpg', 'https://i.imgbox.com/5eveR18P.jpg', 'http://i64.tinypic.com/n5mudx.jpg', 'http://thumbsnap.com/i/WOv9HaHv.jpg?0116']
-	desc = "{}\n\n\n{}\n\n{}"
+	image_urls = ["http://i.imgur.com/nRTNo6y.png", "http://oi64.tinypic.com/jtvuxf.jpg", "http://thumbsnap.com/i/e5bvtDl8.png?0118"]
+	desc = "{}\n\n\n{}"
 	title = titles[random.randint(0, len(titles) - 1)]
-	titles = ['大奖捕鱼网 http://www.djyl18.com', '大奖信誉场 http://www.djyl18.com', '大奖网站 http://www.djyl18.com']
-	random.shuffle(promos)
-	promo = random.choice(promos)
-	random.shuffle(contents)
-	content = "	{}\n\n".format(", ".join(contents[:random.randint(5,10)]))
-	for n in range(random.randint(2,3)):
-		random.shuffle(contents)
-		content += "	{}\n".format(", ".join(contents[:random.randint(5,10)]))
-	links = ['http://imgur.com/RRR8Xxo', 'http://imgur.com/pT9gQCk', 'http://imgur.com/pJ7at7m']
-	desc_link = "\n".join(["{} ---- {}".format(titles[random.randint(0, len(titles) - 1)], l) for l in links[-3:]])
+	title = '大奖娱乐【邮件限时专享优惠】'
+	# random.shuffle(promos)
+	# promo = random.choice(promos)
+	# random.shuffle(contents)
+	# content = "	{}\n\n".format(", ".join(contents[:random.randint(5,10)]))
+	# for n in range(random.randint(2,3)):
+	# 	random.shuffle(contents)
+	# 	content += "	{}\n".format(", ".join(contents[:random.randint(5,10)]))
+	top = "大奖娱乐【邮件限时专享优惠】：首存100送108共获208，15倍流水即可！ 更多小额福利：存20可获得48！存50可获得108！新春好礼送不停，详情请见 http://www.djlaohuji.com"
+	news = ""
+	with open("news.txt", "r") as f:
+		news = f.read()
+	# links = ['http://imgur.com/RRR8Xxo', 'http://imgur.com/pT9gQCk', 'http://imgur.com/pJ7at7m']
+	# desc_link = "\n".join(["{} ---- {}".format(titles[random.randint(0, len(titles) - 1)], l) for l in links[-3:]])
 	data = {
 		'image': random.choice(image_urls),
 		'title': title,
-		'description': desc.format(promo, content, desc_link).replace('.', '&#46;')
+		'description': desc.format(top, news).replace('.', '&#46;')
 	}
 	proxys = {
 		'http': 'http://winner88:qweasd321@fr.proxymesh.com:31280',
@@ -223,6 +228,7 @@ def request_api():
 	response = requests.post(url, headers=headers, data=urlencode(data), timeout=15)
 	print(response)
 	print(response.json())
+	print("http://imgur.com/{}".format(response.json()['data']['id']))
 	
 
 def test_ips():
@@ -250,8 +256,21 @@ def test_ips():
 	print("Total number of working IP: {}".format(len(checked_proxies)))
 	print("Stop {} ({})".format(datetime.now(),datetime.now() - start))
 
+
+def test_def(arr=[], n=None):
+	if n is not None:
+		if len(arr) > 0:
+			tmp = list(set(arr))
+			return tmp[-n]
+		else:
+			return "Parameter for array is empty."
+	else:
+		return "Nth is None."
+
+
 if __name__ == "__main__":
+	print(test_def([3, 2, 1, 5, 6, 4], 2))
 	# check_proxymesh_ip()
 	# do_request()
 	# request_api()
-	test_ips()
+	# test_ips()
